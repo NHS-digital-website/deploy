@@ -15,4 +15,3 @@
 *.log
 /.artefacts
 /.mk
-/.venv

@@ -1,0 +1,15 @@
+---
+# Manage CloudFormation stack
+
+- name: Manage CF Stack
+  hosts: localhost
+  gather_facts: false
+
+  pre_tasks:
+    - name: Assert 'role' variable
+      assert:
+        that:
+          - role is defined
+
+  roles:
+    - role: "{{ role }}"
