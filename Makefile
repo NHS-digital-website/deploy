@@ -1,5 +1,15 @@
 include .mk
 
+ANSIBLE_CONFIG ?= ansible/ansible.cfg
+PWD = $(shell pwd)
+VENV ?= ansible/.venv
+
+PATH := $(VENV)/bin:$(shell printenv PATH)
+SHELL := env PATH=$(PATH) /bin/bash
+
+export PATH
+export ANSIBLE_CONFIG
+
 .PHONY: .phony
 
 ## Prints this help
@@ -12,11 +22,39 @@ help:
 		$(MAKEFILE_LIST)
 
 ## Initialise local project
-init: .git/.local-hooks-installed
+init: .git/.local-hooks-installed $(VENV)
 
 ## Lint all the code
-lint:
-	@echo "Ignoring..."
+lint: lint.ansible
+
+## Lint all Ansible code
+lint.ansible: $(VENV)
+	@echo "Ansible Playbooks Lint..."
+	@find ansible/playbooks -name "*.yml" -print0 | \
+		xargs -n1 -0 -I% \
+		ansible-lint %
+	@echo "Ansible Roles Lint..."
+	@find ansible/roles/service -name "*.yml" -not -path "*/files/*.yml" -print0 | \
+		xargs -n1 -0 -I% \
+		ansible-lint % \
+			--exclude=ansible/roles/vendor
+
+## Manage CloudFormation stack
+# Usage: make stack ROLE=hippocms
+stack: $(VENV)
+	@printenv ROLE || ( \
+		echo "please specify ROLE, example: make stack ROLE=hippocms" \
+		&& exit 1 \
+	)
+	ansible-playbook -i ansible/inventories/localhost \
+		--extra-vars pwd=$(PWD) \
+		--extra-vars role=$(ROLE) \
+		$(EXTRAS) \
+		ansible/playbooks/stack.yml
+
+## Delete all downloaded or generated files
+clean:
+	rm -rf $(VENV)
 
 # generates empty .mk file if not present
 .mk:
@@ -25,3 +63,15 @@ lint:
 # install hooks and local git config
 .git/.local-hooks-installed:
 	@bash .git-local/install
+
+# install dependencies in virtualenv
+$(VENV):
+	@which virtualenv > /dev/null || (\
+		echo "please install virtualenv: http://docs.python-guide.org/en/latest/dev/virtualenvs/" \
+		&& exit 1 \
+	)
+	virtualenv $(VENV)
+	$(VENV)/bin/pip install -U "pip<9.0"
+	$(VENV)/bin/pip install pyopenssl urllib3[secure] requests[security]
+	$(VENV)/bin/pip install -r ansible/requirements.txt --ignore-installed
+	virtualenv --relocatable $(VENV)

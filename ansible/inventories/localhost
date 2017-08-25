@@ -1,0 +1,8 @@
+#!/bin/bash
+ROOT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/../.."
+echo "{
+  \"localhost\": {
+    \"ansible_connection\": \"local\",
+    \"ansible_python_interpreter\": \"${ROOT_DIR}/.venv/bin/python\"
+  }
+}"
