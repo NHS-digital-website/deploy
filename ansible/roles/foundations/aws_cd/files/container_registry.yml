@@ -1,0 +1,23 @@
+---
+
+Description: EC2 Container Registry
+AWSTemplateFormatVersion: '2010-09-09'
+
+Resources:
+  CodeBuild:
+    Type: "AWS::ECR::Repository"
+    Properties:
+      RepositoryName: "codebuild/build"
+      RepositoryPolicyText:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: CodeBuildPull
+            Effect: Allow
+            Principal:
+              AWS:
+                # codeBuild in eu-west-1
+                - arn:aws:iam::570169269855:root
+            Action:
+              - ecr:GetDownloadUrlForLayer
+              - ecr:BatchGetImage
+              - ecr:BatchCheckLayerAvailability

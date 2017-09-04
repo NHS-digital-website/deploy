@@ -1,0 +1,261 @@
+---
+
+Parameters:
+  BuilderVpcId:
+    Description: VPC used to build AMI
+    Type: String
+
+  BuilderSubnetId:
+    Description: Public subnet used to build AMI
+    Type: String
+
+  GithubToken:
+    Description: GitHub OAuth Token
+    Type: String
+
+  HostedDomainPublic:
+    Description: Public R53 domain name
+    Type: String
+
+Resources:
+  BuilderPolicy:
+    Type: "AWS::IAM::ManagedPolicy"
+    Properties:
+      Description: "Build Policy"
+      Path: "/"
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - cloudformation:*
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - cloudwatch:*
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - ec2:*
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - iam:AddRoleToInstanceProfile
+              - iam:AttachRolePolicy
+              - iam:CreateInstanceProfile
+              - iam:CreatePolicy
+              - iam:CreatePolicyVersion
+              - iam:CreateRole
+              - iam:DeletePolicy
+              - iam:DeletePolicyVersion
+              - iam:DeleteInstanceProfile
+              - iam:DeleteRole
+              - iam:DetachRolePolicy
+              - iam:ListPolicyVersions
+              - iam:PassRole
+              - iam:PutRolePolicy
+              - iam:RemoveRoleFromInstanceProfile
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - s3:*
+            Resource:
+              - !Sub "arn:aws:s3:::artefacts.${HostedDomainPublic}"
+              - !Sub "arn:aws:s3:::artefacts.${HostedDomainPublic}/*"
+          - Effect: Allow
+            Action:
+              - sns:ListSubscriptions
+              - sns:ListTopics
+              - sns:CreateTopic
+              - sns:Subscribe
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - sqs:CreateQueue
+              - sqs:DeleteQueue
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - codebuild:StartBuild
+              - codebuild:BatchGetBuilds
+            Resource:
+              - !Sub "arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:project/base_image"
+              - !Sub "arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:project/bastion"
+              - !Sub "arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:project/build_repo"
+          - Effect: Allow
+            Action:
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Resource:
+              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/base_image:*"
+              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/bastion:*"
+              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/build_repo:*"
+
+  BuildRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+          - Effect: Allow
+            Principal:
+              Service:
+                - codebuild.amazonaws.com
+                - codepipeline.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - Ref: BuilderPolicy
+      Path: "/"
+      RoleName: BuildRole
+
+  ##
+  # Prepare and check ps-build repo
+  #
+  BuildRepoLogGroup:
+    Type: "AWS::Logs::LogGroup"
+    Properties:
+      LogGroupName: /aws/codebuild/build_repo
+      RetentionInDays: 7
+
+  BuildRepoCodeBuild:
+    DependsOn:
+      - BuildRepoLogGroup
+    Type: "AWS::CodeBuild::Project"
+    Properties:
+      Artifacts:
+        Location: !Sub "artefacts.${HostedDomainPublic}"
+        Type: S3
+        Name: build_repo.zip
+        NamespaceType: NONE
+        Path: codebuild-build-ami
+        Packaging: ZIP
+      Description: Prepare ps-build repo
+      # EncryptionKey: String
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        EnvironmentVariables:
+          - Name: USER
+            Value: root
+        Image: woledzki/alpine-virtualenv:latest
+        Type: LINUX_CONTAINER
+      Name: build_repo
+      ServiceRole: !GetAtt [ "BuildRole", "Arn" ]
+      Source:
+        BuildSpec: buildspec_package.yml
+        Auth:
+          Type: OAUTH
+        Type: GITHUB
+        Location: "https://github.com/NHS-digital-website/ps-build.git"
+      TimeoutInMinutes: 15
+
+  ##
+  # Base Image AMI build
+  #
+  BaseImageLogGroup:
+    Type: "AWS::Logs::LogGroup"
+    Properties:
+      LogGroupName: /aws/codebuild/base_image
+      RetentionInDays: 7
+
+  BaseImageCodeBuild:
+    DependsOn:
+      - BaseImageLogGroup
+    Type: "AWS::CodeBuild::Project"
+    Properties:
+      Artifacts:
+        Location: !Sub "artefacts.${HostedDomainPublic}"
+        Type: S3
+        Name: base_image.zip
+        NamespaceType: NONE
+        Path: codebuild-build-ami
+        Packaging: ZIP
+      Description: Build base_image AMI
+      # EncryptionKey: String
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        EnvironmentVariables:
+          - Name: USER
+            Value: root
+          - Name: ROLE
+            Value: base_image
+          - Name: AWS_BUILD_SUBNET_ID
+            Value: !Ref BuilderSubnetId
+          - Name: AWS_BUILD_VPC_ID
+            Value: !Ref BuilderVpcId
+        Image: woledzki/alpine-virtualenv:latest
+        Type: LINUX_CONTAINER
+      Name: base_image
+      ServiceRole: !GetAtt [ "BuildRole", "Arn" ]
+      Source:
+        BuildSpec: buildspec_ami.yml
+        Auth:
+          Type: OAUTH
+        Type: GITHUB
+        Location: "https://github.com/NHS-digital-website/ps-build.git"
+      TimeoutInMinutes: 15
+
+  BuildPipeline:
+    Type: "AWS::CodePipeline::Pipeline"
+    Properties:
+      ArtifactStore:
+        Location: !Sub "artefacts.${HostedDomainPublic}"
+        Type: S3
+      # DisableInboundStageTransitions:
+      #   - DisableInboundStageTransitions
+      Name: AmiBuild
+      # RestartExecutionOnUpdate: Boolean
+      RoleArn: !GetAtt [ "BuildRole", "Arn" ]
+      Stages:
+        # Code Change
+        - Name: SourceCode
+          Actions:
+            - Name: Github
+              ActionTypeId:
+                Category: Source
+                Owner: ThirdParty
+                Provider: GitHub
+                Version: 1
+              Configuration:
+                Owner: NHS-digital-website
+                OAuthToken: !Ref GithubToken
+                Repo: ps-build
+                Branch: master
+              OutputArtifacts:
+                - Name: GithubOutput
+              RunOrder: 1
+        # Build
+        - Name: BuildAMI
+          Actions:
+            - Name: Initialise
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: 1
+              Configuration:
+                ProjectName: build_repo
+              InputArtifacts:
+                - Name: GithubOutput
+              OutputArtifacts:
+                - Name: BuildSnapshotOutput
+              RunOrder: 1
+            - Name: BaseImageAMI
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: 1
+              Configuration:
+                ProjectName: base_image
+              InputArtifacts:
+                - Name: BuildSnapshotOutput
+              OutputArtifacts:
+                - Name: BaseImageOutput
+              RunOrder: 2

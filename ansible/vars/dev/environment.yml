@@ -1,0 +1,14 @@
+---
+
+aws:
+  tags:
+    Project: Publication Service
+    Environment: dev
+
+aws_cd:
+  public_fqdn: digital.nhs.uk
+  pipelines:
+    build:
+      enabled: yes
+      vpc_id: vpc-65b45401
+      subnet_id: subnet-543af230

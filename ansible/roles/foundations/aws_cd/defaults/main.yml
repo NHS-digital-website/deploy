@@ -1,0 +1,10 @@
+---
+
+aws_cd:
+  public_fqdn: pipeline.io
+
+  pipelines:
+    build:
+      enabled: no
+      github:
+        token: ~

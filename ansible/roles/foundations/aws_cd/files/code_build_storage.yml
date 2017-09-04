@@ -1,0 +1,16 @@
+---
+
+Parameters:
+  HostedDomainPublic:
+    Description: Public R53 domain name
+    Type: String
+
+Resources:
+  BuildStorage:
+    Type: AWS::S3::Bucket
+    Properties:
+      AccessControl: Private
+      BucketName: !Sub "artefacts.${HostedDomainPublic}"
+      # Everything can be rebuild from code
+      VersioningConfiguration:
+        Status: Suspended

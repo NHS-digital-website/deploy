@@ -1,14 +1,18 @@
 include .mk
 
 ANSIBLE_CONFIG ?= ansible/ansible.cfg
+ENV ?= dev
 PWD = $(shell pwd)
+REGION ?= eu-west-1
 VENV ?= ansible/.venv
 
 PATH := $(VENV)/bin:$(shell printenv PATH)
 SHELL := env PATH=$(PATH) /bin/bash
 
-export PATH
 export ANSIBLE_CONFIG
+export AWS_DEFAULT_REGION=$(REGION)
+export AWS_REGION=$(REGION)
+export PATH
 
 .PHONY: .phony
 
@@ -23,6 +27,11 @@ help:
 
 ## Initialise local project
 init: .git/.local-hooks-installed $(VENV)
+
+## Sudo for AWS Roles
+# Usage: $(make aws-sudo TOKEN=123789)
+aws-sudo: $(VENV)
+	@aws-sudo -m $(TOKEN) $(PROFILE)
 
 ## Lint all the code
 lint: lint.ansible
@@ -41,7 +50,7 @@ lint.ansible: $(VENV)
 
 ## Manage CloudFormation stack
 # Usage: make stack ROLE=hippocms
-stack: $(VENV)
+stack: $(VENV) ansible/vars/$(ENV)/secrets.yml
 	@printenv ROLE || ( \
 		echo "please specify ROLE, example: make stack ROLE=hippocms" \
 		&& exit 1 \
@@ -49,6 +58,8 @@ stack: $(VENV)
 	ansible-playbook -i ansible/inventories/localhost \
 		--extra-vars pwd=$(PWD) \
 		--extra-vars role=$(ROLE) \
+		--extra-vars @$(PWD)/ansible/vars/$(ENV)/environment.yml \
+		--extra-vars @$(PWD)/ansible/vars/$(ENV)/secrets.yml \
 		$(EXTRAS) \
 		ansible/playbooks/stack.yml
 
