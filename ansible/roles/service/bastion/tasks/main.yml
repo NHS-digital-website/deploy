@@ -1,0 +1,21 @@
+---
+
+- name: Ensure Bastion Stack
+  cloudformation:
+    stack_name: "{{ env }}-bastion"
+    state: "{{ bastion.state }}"
+    template: "{{ role_path }}/files/bastion.yml"
+    template_parameters:
+      BastionImage: "{{ bastion.ami.id }}"
+      BastionInstanceCount: "{{ bastion.aws.instance_count }}"
+      BastionInstanceMonitoring: "{{ bastion.aws.instance_monitoring }}"
+      BastionInstanceType: "{{ bastion.aws.instance_type }}"
+      Environment: "{{ env }}"
+      EnvironmentConfig: "---\n{{ environment_vars | to_nice_yaml }}"
+      KeyName: "{{ lookup('env','AWS_KEY_NAME') }}"
+      S3ConfigBucket: "{{ config_bucket }}"
+    tags: "{{ aws.tags | combine({
+      'Role': role,
+      'Description': 'Bastion stack',
+      'Name': env+'-'+role
+    }) }}"

@@ -1,9 +1,13 @@
 ---
 
+# global shortcuts
+env: &ENV dev
+config_bucket: "config.{{ env }}.digital.nhs.uk"
+
 aws:
   tags:
     Project: Publication Service
-    Environment: dev
+    Environment: *ENV
 
 aws_cd:
   public_fqdn: digital.nhs.uk
@@ -12,3 +16,8 @@ aws_cd:
       enabled: yes
       vpc_id: vpc-65b45401
       subnet_id: subnet-543af230
+
+aws_foundation:
+  environment_name: *ENV
+  public_fqdn:
+    - dev.digital.nhs.uk

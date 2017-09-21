@@ -1,10 +1,11 @@
-include .mk
+include env.mk
 
+KEY_NAME ?=
 ANSIBLE_CONFIG ?= ansible/ansible.cfg
 ENV ?= dev
 PWD = $(shell pwd)
 REGION ?= eu-west-1
-VENV ?= ansible/.venv
+VENV ?= $(PWD)/ansible/.venv
 
 PATH := $(VENV)/bin:$(shell printenv PATH)
 SHELL := env PATH=$(PATH) /bin/bash
@@ -12,6 +13,7 @@ SHELL := env PATH=$(PATH) /bin/bash
 export ANSIBLE_CONFIG
 export AWS_DEFAULT_REGION=$(REGION)
 export AWS_REGION=$(REGION)
+export AWS_KEY_NAME=$(KEY_NAME)
 export PATH
 
 .PHONY: .phony
@@ -29,9 +31,13 @@ help:
 init: .git/.local-hooks-installed $(VENV)
 
 ## Sudo for AWS Roles
-# Usage: $(make aws-sudo TOKEN=123789)
+# Usage:
+#   $(make aws-sudo PROFILE=profile-name)
+#   $(make aws-sudo PROFILE=profile-with-mfa TOKEN=123789)
 aws-sudo: $(VENV)
-	@aws-sudo -m $(TOKEN) $(PROFILE)
+	@(printenv TOKEN > /dev/null && aws-sudo -m $(TOKEN) $(PROFILE) ) || ( \
+		aws-sudo $(PROFILE) \
+	)
 
 ## Lint all the code
 lint: lint.ansible
@@ -50,26 +56,30 @@ lint.ansible: $(VENV)
 
 ## Manage CloudFormation stack
 # Usage: make stack ROLE=hippocms
-stack: $(VENV) ansible/vars/$(ENV)/secrets.yml
+stack: $(VENV) ansible/vars/$(ENV)/secrets.yml ansible/roles/vendor
 	@printenv ROLE || ( \
 		echo "please specify ROLE, example: make stack ROLE=hippocms" \
 		&& exit 1 \
 	)
-	ansible-playbook -i ansible/inventories/localhost \
+	cd ansible && ansible-playbook \
+		--inventory inventories/localhost \
 		--extra-vars pwd=$(PWD) \
 		--extra-vars role=$(ROLE) \
 		--extra-vars @$(PWD)/ansible/vars/$(ENV)/environment.yml \
 		--extra-vars @$(PWD)/ansible/vars/$(ENV)/secrets.yml \
 		$(EXTRAS) \
-		ansible/playbooks/stack.yml
+		playbooks/stack.yml
+
+ansible/roles/vendor: $(VENV) .phony
+	ansible-galaxy install -p ansible/roles/vendor -r ansible/roles/vendor.yml --ignore-errors
 
 ## Delete all downloaded or generated files
 clean:
 	rm -rf $(VENV)
 
-# generates empty .mk file if not present
-.mk:
-	touch .mk
+# generates empty env.mk file if not present
+env.mk:
+	touch env.mk
 
 # install hooks and local git config
 .git/.local-hooks-installed:

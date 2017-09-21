@@ -1,0 +1,9 @@
+---
+
+bastion:
+  state: present
+
+  aws:
+    instance_count: 1
+    instance_monitoring: "false"
+    instance_type: t2.micro

@@ -6,10 +6,30 @@
   gather_facts: false
 
   pre_tasks:
-    - name: Assert 'role' variable
+    - name: Assert global variable are set
       assert:
         that:
+          - env is defined
           - role is defined
+
+    - name: Assert AWS SSH key name
+      assert:
+        that:
+          - lookup('env','AWS_KEY_NAME')
+      when: role in [ 'bastion' ]
+
+    - name: Load deploy artefact
+      include_vars: "{{ playbook_dir }}/../../.artefacts/{{ role }}.yml"
+      when: role in [ 'bastion' ]
+
+    - name: Set basic environment variables
+      set_fact:
+        environment_vars:
+          env: "{{ env }}"
+
+    - name: Add role environment variables
+      set_fact:
+        environment_vars: "{{ environment_vars | combine({ role: vars[role] | default({}) }, recursive=True) }}"
 
   roles:
     - role: "{{ role }}"

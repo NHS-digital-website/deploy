@@ -1,8 +1,6 @@
-ansible==2.2.2.0
+ansible==2.4.0.0
 ansible-lint==3.*
-awscli==1.11.138
-boto
-boto3==1.4.2
+awscli
 shyaml==0.4.*
 netaddr==0.7.*
 aws-sudo
