@@ -1,0 +1,173 @@
+---
+
+Description: Bastion stack
+AWSTemplateFormatVersion: 2010-09-09
+
+Parameters:
+  BastionImage:
+    Description: AMI ID of the API Lists
+    Type: AWS::EC2::Image::Id
+  BastionInstanceCount:
+    Description: Number of EC2 instances to launch
+    Type: Number
+    Default:  1
+  BastionInstanceMonitoring:
+    Description: Should the detailed instance monitoring be enabled
+    Type: String
+    Default: false
+    AllowedValues:
+      - true
+      - false
+    ConstraintDescription: must be a true or false.
+  BastionInstanceType:
+    Description: EC2 instance type
+    Type: String
+    Default: t2.nano
+    AllowedValues:
+      - t1.micro
+      - t2.nano
+      - t2.micro
+      - t2.small
+    ConstraintDescription: must be a valid EC2 instance type.
+  Environment:
+    Description: Environment name
+    Type: String
+  EnvironmentConfig:
+    Description: YAML configuration
+    Type: String
+    Default: "--- {}"
+  KeyName:
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
+    Type: AWS::EC2::KeyPair::KeyName
+    ConstraintDescription: must be the name of an existing EC2 KeyPair.
+  S3ConfigBucket:
+    Description: S3 bucket to pull packages and keys from
+    Type: String
+
+Resources:
+  SG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Enable SSH access to Bastion
+      VpcId:
+        Fn::ImportValue: !Sub "${Environment}-vpc::VpcId"
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort:  22
+          ToPort:  22
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub "${Environment}-bastion"
+
+  Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version:  2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: "/"
+      Policies:
+        - PolicyName: !Sub "${Environment}-r53-access"
+          PolicyDocument:
+            Version:  2012-10-17
+            Statement:
+              - Action:
+                  - route53:*
+                Effect: Allow
+                Resource:
+                  - Fn::Sub:
+                    - "arn:aws:route53:::hostedzone/${ZoneId}"
+                    - ZoneId:
+                        Fn::ImportValue: !Sub "${Environment}-public-dns::ZoneId"
+        - PolicyName: !Sub "${Environment}-bastion-access"
+          PolicyDocument:
+            Version:  2012-10-17
+            Statement:
+              - Action:
+                  - ec2:Describe*
+                  - route53:ListHostedZones
+                Effect: Allow
+                Resource: "*"
+              - Action:
+                  - s3:GetObject
+                  - s3:ListBucket
+                Effect: Allow
+                Resource: !Sub "arn:aws:s3:::${S3ConfigBucket}/bastion/*"
+
+  RoleInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: "/"
+      Roles:
+        - Ref: Role
+
+  LaunchConfig:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Metadata:
+      AWS::CloudFormation::Authentication:
+        rolebased:
+          type: S3
+          buckets:
+            - !Ref S3ConfigBucket
+          roleName: !Ref Role
+      AWS::CloudFormation::Init:
+        config:
+          files:
+            "/bootstrap/environment.yml":
+              content: !Ref EnvironmentConfig
+              group: root
+              mode: "000644"
+              owner: root
+    Properties:
+      AssociatePublicIpAddress: true
+      KeyName: !Ref KeyName
+      IamInstanceProfile: !Ref RoleInstanceProfile
+      ImageId: !Ref BastionImage
+      InstanceMonitoring: !Ref BastionInstanceMonitoring
+      InstanceType: !Ref BastionInstanceType
+      SecurityGroups:
+        - Ref: SG
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          . /bootstrap/bootstrap.inc.sh
+          set_global 'LaunchConfig' 'ASGroup' '${AWS::Region}' '${AWS::StackName}'
+          cfnInit
+          cd /bootstrap && make ansible_configure_local ROLE=bastion \
+            || die "configure playbook failed"
+          log "Instance bootstrapped"
+          signal 0
+          cleanup
+
+  ASGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      DesiredCapacity: !Ref BastionInstanceCount
+      LaunchConfigurationName: !Ref LaunchConfig
+      MaxSize: 2
+      MinSize: !Ref BastionInstanceCount
+      Tags:
+        - Key: Name
+          Value: !Sub "${Environment}-bastion"
+          PropagateAtLaunch: true
+      VPCZoneIdentifier:
+        Fn::Split:
+          - ","
+          - Fn::ImportValue: !Sub "${Environment}-vpc::SubnetsPublic"
+    CreationPolicy:
+      ResourceSignal:
+        Count: 0
+        Timeout: PT10M
+    UpdatePolicy:
+      AutoScalingRollingUpdate:
+        MinInstancesInService: 1
+        MaxBatchSize: 1
+        PauseTime: PT10M
+        WaitOnResourceSignals: true

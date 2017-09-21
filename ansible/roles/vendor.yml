@@ -1,0 +1,4 @@
+---
+
+- role: ansible-city.aws_foundation
+  version: v1.0

@@ -1,0 +1,27 @@
+---
+
+Description: S3 bucket
+AWSTemplateFormatVersion: '2010-09-09'
+
+Parameters:
+  AccessControl:
+    Description: Access control for bucket
+    Type: String
+    Default: AuthenticatedRead
+  Environment:
+    Description: Environment name
+    Type: String
+  Versioning:
+    Description: Versioning for bucket
+    Type: String
+    Default: Enabled
+
+Resources:
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: "Retain"
+    Properties:
+      AccessControl: !Ref AccessControl
+      BucketName: !Sub "config.${Environment}.digital.nhs.uk"
+      VersioningConfiguration:
+        Status: !Ref Versioning
