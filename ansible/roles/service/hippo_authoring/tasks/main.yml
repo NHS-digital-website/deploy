@@ -1,0 +1,26 @@
+---
+
+- include_role:
+    name: rds_mysql
+  vars:
+    - rds_mysql_override: "{{ hippo_authoring.rds_mysql }}"
+
+- name: Ensure Hippo Authoring Stack
+  cloudformation:
+    stack_name: "{{ env }}-hippo-authoring"
+    state: "{{ hippo_authoring.state }}"
+    template: "{{ role_path }}/files/hippo_authoring.yml"
+    template_parameters:
+      Image: "{{ hippo_authoring.ami.id }}"
+      InstanceCount: "{{ hippo_authoring.aws.instance_count }}"
+      InstanceMonitoring: "{{ hippo_authoring.aws.instance_monitoring }}"
+      InstanceType: "{{ hippo_authoring.aws.instance_type }}"
+      Environment: "{{ env }}"
+      EnvironmentConfig: "---\n{{ environment_vars | to_nice_yaml }}"
+      KeyName: "{{ lookup('env','AWS_KEY_NAME') }}"
+      HostedDomainPublic: "{{ hippo_authoring.public_fqdn }}"
+    tags: "{{ aws.tags | combine({
+      'Role': role|replace('_', '-'),
+      'Description': 'Hippo Authoring stack',
+      'Name': env + '-' + role|replace('_', '-')
+    }) }}"

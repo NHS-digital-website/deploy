@@ -1,5 +1,0 @@
----
-
-- name: NO OP
-  debug:
-    msg: "Hello World!"

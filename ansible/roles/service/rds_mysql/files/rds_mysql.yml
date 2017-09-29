@@ -1,0 +1,135 @@
+---
+
+Description: MySQL RDS setup
+AWSTemplateFormatVersion: '2010-09-09'
+
+Parameters:
+  AllowMajorVersionUpgrade:
+    Description: Switch to allow major version upgrades, should only be enabled temporarily
+    Type: String
+    Default: 'false'
+  BackupRetentionPeriod:
+    Default: 7
+    Description: Automated Backup Retention Period
+    Type: String
+  Environment:
+    Description: Environment name
+    Type: String
+  InstanceType:
+    AllowedValues:
+      - db.m3.medium
+      - db.m3.large
+      - db.m3.xlarge
+      - db.m3.2xlarge
+      - db.r3.large
+      - db.r3.xlarge
+      - db.r3.2xlarge
+      - db.r3.4xlarge
+      - db.r3.8xlarge
+      - db.t2.micro
+      - db.t2.small
+      - db.t2.medium
+      - db.t2.large
+    ConstraintDescription: must be a valid RDS instance type.
+    Default: db.m3.medium
+    Description: Mysql instance type
+    Type: String
+  Port:
+    Description: DB Port number
+    Default: 3306
+    Type: Number
+  Role:
+    Description: Which Role does this instance serve
+    Type: String
+  RootPassword:
+    Description: Mysql Root Password
+    Type: String
+    NoEcho: 'true'
+  Storage:
+    Default: 20
+    Description: Mysql Storage Size
+    Type: Number
+  Version:
+    Description: Engine Version
+    Type: String
+
+Resources:
+  Sg:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: !Sub "MySQL for ${Role}"
+      VpcId:
+        Fn::ImportValue: !Sub "${Environment}-vpc::VpcId"
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: !Ref Port
+          ToPort: !Ref Port
+          CidrIp:
+            Fn::ImportValue: !Sub "${Environment}-vpc::CidrBlock"
+
+  Subnet:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: DB Subnet
+      SubnetIds:
+        Fn::Split:
+          - ","
+          - Fn::ImportValue: !Sub "${Environment}-vpc::SubnetsPrivate"
+      Tags:
+        - Key: Name
+          Value: !Sub "${Environment}-${Role}-mysql"
+        - Key: Role
+          Value: !Ref Role
+
+  DB:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      AllocatedStorage: !Ref Storage
+      AllowMajorVersionUpgrade: !Ref AllowMajorVersionUpgrade
+      BackupRetentionPeriod: !Ref BackupRetentionPeriod
+      DBInstanceClass: !Ref InstanceType
+      DBInstanceIdentifier: !Sub "${Environment}-${Role}"
+      DBSubnetGroupName: !Ref Subnet
+      Engine: MySQL
+      EngineVersion: !Ref Version
+      MasterUsername: root
+      MasterUserPassword: !Ref RootPassword
+      MultiAZ: true
+      Port: !Ref Port
+      PubliclyAccessible: false
+      StorageType: standard
+      VPCSecurityGroups:
+        - Ref: Sg
+      Tags:
+        - Key: Name
+          Value: !Sub "${Environment}-${Role}"
+
+  DnsRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Comment: !Sub "${Role} Mysql DB"
+      HostedZoneId:
+        Fn::ImportValue: !Sub "${Environment}-vpc::InternalDns"
+      Name: !Sub "${Role}.mysql.db.int"
+      ResourceRecords:
+        - Fn::GetAtt:
+          - DB
+          - Endpoint.Address
+      TTL: 300
+      Type: CNAME
+
+Outputs:
+  ConnectionString:
+    Description: MySQL connection URI
+    Value: !Sub "mysql://${Role}.mysql.db.int:${Port}/"
+
+  Address:
+    Description: MySQL address
+    Value:
+      Fn::GetAtt:
+      - DB
+      - Endpoint.Address
+
+  Port:
+    Description: MySQL port
+    Value: !Ref Port

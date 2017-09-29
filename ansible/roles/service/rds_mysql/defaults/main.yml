@@ -1,0 +1,10 @@
+---
+
+rds_mysql:
+  backup_retention: 7
+  instance_type: db.t2.medium
+  storage: 20
+  version: "5.7"
+  port: 3306
+  root_password: ~
+  tags: { }

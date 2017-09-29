@@ -3,6 +3,7 @@
 # global shortcuts
 env: &ENV dev
 config_bucket: "config.{{ env }}.digital.nhs.uk"
+public_fqdn: &FQDN dev.ps.digital.nhs.uk
 
 aws:
   tags:
@@ -20,4 +21,11 @@ aws_cd:
 aws_foundation:
   environment_name: *ENV
   public_fqdn:
-    - dev.digital.nhs.uk
+    - *FQDN
+
+hippo_authoring:
+  mysql:
+    host: hippo-authoring.mysql.db.int
+    root_user: root
+    user: hippocms
+    dbname: hippocms

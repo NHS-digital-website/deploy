@@ -1,0 +1,24 @@
+---
+
+- name: This is hack for 2.4
+  set_fact:
+    rds_mysql: "{{ rds_mysql | combine(rds_mysql_override) }}"
+  when: rds_mysql_override is defined
+
+- name: Ensures MySQL RDS
+  cloudformation:
+    stack_name: "{{ env }}-{{ rds_mysql.role }}-mysql"
+    template: "{{ role_path }}/files/rds_mysql.yml"
+    template_parameters:
+      # Temporarily set this to true when performing major version upgrades
+      # Please ensure that you do a second update that reverts this to false after an upgrade
+      AllowMajorVersionUpgrade: "false"
+      BackupRetentionPeriod: "{{ rds_mysql.backup_retention }}"
+      Environment: "{{ env }}"
+      InstanceType: "{{ rds_mysql.instance_type }}"
+      Port: "{{ rds_mysql.port }}"
+      Role: "{{ rds_mysql.role }}"
+      RootPassword: "{{ rds_mysql.root_password }}"
+      Storage: "{{ rds_mysql.storage }}"
+      Version: "{{ rds_mysql.version }}"
+    tags: "{{ rds_mysql.tags }}"

@@ -1,0 +1,19 @@
+---
+
+hippo_authoring:
+  state: present
+  public_fqdn: "{{ public_fqdn }}"
+
+  aws:
+    instance_count: 1
+    instance_monitoring: "false"
+    instance_type: t2.medium
+
+  rds_mysql:
+    version: "5.6"
+    role: hippo-authoring
+    tags: "{{ aws.tags | combine({
+      'Role': 'hippo-authoring',
+      'Description': 'Hippo Authoring RDS stack',
+      'Name': env + '-hippo-authoring'
+    }) }}"
