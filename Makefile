@@ -1,11 +1,12 @@
 include env.mk
 
-KEY_NAME ?=
 ANSIBLE_CONFIG ?= ansible/ansible.cfg
 ENV ?= dev
+KEY_NAME ?=
 PWD = $(shell pwd)
 REGION ?= eu-west-1
 VENV ?= $(PWD)/ansible/.venv
+VERSION ?= $(shell git describe --tags)
 
 PATH := $(VENV)/bin:$(shell printenv PATH)
 SHELL := env PATH=$(PATH) /bin/bash
@@ -69,6 +70,17 @@ stack: $(VENV) ansible/vars/$(ENV)/secrets.yml ansible/roles/vendor
 		--extra-vars @$(PWD)/ansible/vars/$(ENV)/secrets.yml \
 		$(EXTRAS) \
 		playbooks/stack.yml
+
+## Create new version tag based on the nearest tag
+version.bumpup:
+	@git tag $$((git describe --abbrev=0 --tags | grep $$(cat .version) || echo $$(cat .version).-1) | perl -pe 's/^(v(\d+\.)*)(-?\d+)(.*)$$/$$1.($$3+1).$$4/e')
+	$(MAKE) version.print
+
+## Prints current version
+version.print:
+	@echo "- - -"
+	@echo "Current version: $(VERSION)"
+	@echo "- - -"
 
 ansible/roles/vendor: $(VENV) .phony
 	ansible-galaxy install -p ansible/roles/vendor -r ansible/roles/vendor.yml --ignore-errors

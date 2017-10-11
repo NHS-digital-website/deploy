@@ -1,0 +1,285 @@
+---
+
+Description: Hippo Authoring stack
+AWSTemplateFormatVersion: 2010-09-09
+
+Parameters:
+  HostedDomainPublic:
+    Description: Environment public domain name
+    Type: String
+
+  Image:
+    Description: AMI ID of the
+    Type: AWS::EC2::Image::Id
+
+  InstanceCount:
+    Description: Number of EC2 instances to launch
+    Type: Number
+    Default:  1
+
+  InstanceMaxSize:
+    Description: Maximum number of EC2 instances to launch in Asg
+    Type: Number
+    Default: 6
+
+  InstanceMonitoring:
+    Description: Should the detailed instance monitoring be enabled
+    Type: String
+    Default: false
+    AllowedValues:
+      - true
+      - false
+    ConstraintDescription: must be a true or false.
+
+  InstanceType:
+    Description: EC2 instance type
+    Type: String
+    Default: t2.medium
+    AllowedValues:
+      - t2.medium
+      - t2.large
+      - m4.large
+    ConstraintDescription: must be a valid EC2 instance type.
+
+  Environment:
+    Description: Environment name
+    Type: String
+
+  EnvironmentConfig:
+    Description: YAML configuration
+    Type: String
+    Default: "--- {}"
+
+  KeyName:
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
+    Type: AWS::EC2::KeyPair::KeyName
+    ConstraintDescription: must be the name of an existing EC2 KeyPair.
+
+  # SSLCertificateId:
+  #   Description: SSL Certificate ARN
+  #   Type: String
+
+Resources:
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Enable access from VPC
+      VpcId:
+        Fn::ImportValue: !Sub "${Environment}-vpc::VpcId"
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort:  22
+          ToPort:  22
+          CidrIp:
+            Fn::ImportValue: !Sub "${Environment}-vpc::CidrBlock"
+        - IpProtocol: tcp
+          FromPort:  8080
+          ToPort:  8080
+          CidrIp:
+            Fn::ImportValue: !Sub "${Environment}-vpc::CidrBlock"
+      Tags:
+        - Key: Name
+          Value: !Sub "${Environment}-hippo-delivery"
+
+  LaunchConfig:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Metadata:
+      AWS::CloudFormation::Init:
+        config:
+          files:
+            "/bootstrap/environment.yml":
+              content: !Ref EnvironmentConfig
+              group: root
+              mode: "000644"
+              owner: root
+    Properties:
+      AssociatePublicIpAddress: false
+      ImageId: !Ref Image
+      InstanceMonitoring: !Ref InstanceMonitoring
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyName
+      SecurityGroups:
+        - Ref: SecurityGroup
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          export HOME=/root
+          . /bootstrap/bootstrap.inc.sh
+          set_global 'LaunchConfig' 'AutoScalingGroup' '${AWS::Region}' '${AWS::StackName}'
+          cfnInit
+          cd /bootstrap && make ansible_configure_local ROLE=hippo_delivery \
+            || die "configure playbook failed"
+          log "Instance bootstrapped"
+          signal 0
+          cleanup
+
+  AutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      DesiredCapacity: !Ref InstanceCount
+      LaunchConfigurationName: !Ref LaunchConfig
+      LoadBalancerNames:
+        - !Ref LoadBalancer
+      MaxSize: !Ref InstanceMaxSize
+      MinSize: !Ref InstanceCount
+      Tags:
+        - Key: Name
+          Value: !Sub "${Environment}-hippo-delivery"
+          PropagateAtLaunch: true
+      VPCZoneIdentifier:
+        Fn::Split:
+          - ","
+          - Fn::ImportValue: !Sub "${Environment}-vpc::SubnetsPrivate"
+    CreationPolicy:
+      ResourceSignal:
+        Count: 0
+        Timeout: PT10M
+    UpdatePolicy:
+      AutoScalingRollingUpdate:
+        MinInstancesInService: 1
+        MaxBatchSize: 1
+        PauseTime: PT10M
+        WaitOnResourceSignals: true
+
+  ##
+  # Loadbalancing
+  #
+  LoadBalancerSg:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Enable access from VPC
+      VpcId:
+        Fn::ImportValue: !Sub "${Environment}-vpc::VpcId"
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 156.67.242.53/32
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 156.67.242.53/32
+      Tags:
+        - Key: Name
+          Value: !Sub "${Environment}-hippo-delivery"
+
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancing::LoadBalancer
+    Properties:
+      ConnectionDrainingPolicy:
+        Enabled: true
+        Timeout: 30
+      CrossZone: true
+      # HealthCheck:
+      #   Target: HTTP:8080/health-check
+      #   HealthyThreshold: 2
+      #   UnhealthyThreshold: 3
+      #   Interval: 10
+      #   Timeout: 2
+      Listeners:
+        - LoadBalancerPort: 80
+          Protocol: HTTP
+          InstancePort: 8080
+          InstanceProtocol: HTTP
+        # - LoadBalancerPort: 443
+        #   Protocol: HTTPS
+        #   SSLCertificateId: !Ref SSLCertificateId
+        #   InstancePort: 8080
+        #   InstanceProtocol: HTTP
+      Scheme: internet-facing
+      SecurityGroups:
+        - !Ref LoadBalancerSg
+      Subnets:
+        Fn::Split:
+          - ","
+          - Fn::ImportValue: !Sub "${Environment}-vpc::SubnetsPublic"
+      Tags:
+        - Key: Name
+          Value: !Sub "${Environment}-hippo-delivery"
+
+  ElbDnsRecordPublic:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Comment: Hippo Authoring public
+      HostedZoneId:
+        Fn::ImportValue: !Sub "${Environment}-public-dns::ZoneId"
+      Name: !Sub "hippo-delivery.web.${HostedDomainPublic}"
+      TTL: 300
+      Type: CNAME
+      ResourceRecords:
+        - Fn::GetAtt:
+          - LoadBalancer
+          - DNSName
+
+  ##
+  # Scaling Up and Down
+  #
+  # Scaling up should double ASG size. Scaling down will take 1 node at a time every
+  # 10 minutes.
+  #
+  ScaleUpPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AdjustmentType: PercentChangeInCapacity
+      AutoScalingGroupName: !Ref AutoScalingGroup
+      Cooldown: 180
+      ScalingAdjustment: 100
+
+  ScaleDownPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AdjustmentType: ChangeInCapacity
+      AutoScalingGroupName: !Ref AutoScalingGroup
+      Cooldown: 600
+      ScalingAdjustment: -1
+
+  CpuAlarmHigh:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmActions:
+        - Ref: ScaleUpPolicy
+      AlarmDescription: Scale-up if CPU > 60% for 2 minutes
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: AutoScalingGroupName
+          Value: !Ref AutoScalingGroup
+      EvaluationPeriods: 2
+      MetricName: CPUUtilization
+      Namespace: AWS/EC2
+      Period: 60
+      Statistic: Average
+      Threshold: 60
+
+  CpuAlarmSpike:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmActions:
+        - Ref: ScaleUpPolicy
+      AlarmDescription: Scale-up if CPU > 80% for 1 minutes
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: AutoScalingGroupName
+          Value: !Ref AutoScalingGroup
+      EvaluationPeriods: 1
+      MetricName: CPUUtilization
+      Namespace: AWS/EC2
+      Period: 60
+      Statistic: Average
+      Threshold: 80
+
+  CpuAlarmLow:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmActions:
+        - Ref: ScaleDownPolicy
+      AlarmDescription: Scale-down if CPU < 20% for 10 minutes
+      ComparisonOperator: LessThanThreshold
+      Dimensions:
+        - Name: AutoScalingGroupName
+          Value: !Ref AutoScalingGroup
+      EvaluationPeriods: 10
+      MetricName: CPUUtilization
+      Namespace: AWS/EC2
+      Period: 300
+      Statistic: Average
+      Threshold: 20

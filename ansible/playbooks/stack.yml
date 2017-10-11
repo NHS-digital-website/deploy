@@ -16,11 +16,11 @@
       assert:
         that:
           - lookup('env','AWS_KEY_NAME')
-      when: role in [ 'bastion', 'hippo_authoring' ]
+      when: role in [ 'bastion', 'hippo_authoring', 'hippo_delivery' ]
 
     - name: Load deploy artefact
       include_vars: "{{ playbook_dir }}/../../.artefacts/{{ role }}.yml"
-      when: role in [ 'bastion', 'hippo_authoring' ]
+      when: role in [ 'bastion', 'hippo_authoring', 'hippo_delivery' ]
 
     - name: Set basic environment variables
       set_fact:

@@ -1,0 +1,21 @@
+---
+
+- name: Ensure Hippo Delivery Stack
+  cloudformation:
+    stack_name: "{{ env }}-hippo-delivery"
+    state: "{{ hippo_delivery.state }}"
+    template: "{{ role_path }}/files/hippo_delivery.yml"
+    template_parameters:
+      Image: "{{ hippo_delivery.ami.id }}"
+      InstanceCount: "{{ hippo_delivery.aws.instance_count }}"
+      InstanceMonitoring: "{{ hippo_delivery.aws.instance_monitoring }}"
+      InstanceType: "{{ hippo_delivery.aws.instance_type }}"
+      Environment: "{{ env }}"
+      EnvironmentConfig: "---\n{{ environment_vars | to_nice_yaml }}"
+      KeyName: "{{ lookup('env','AWS_KEY_NAME') }}"
+      HostedDomainPublic: "{{ hippo_delivery.public_fqdn }}"
+    tags: "{{ aws.tags | combine({
+      'Role': role|replace('_', '-'),
+      'Description': 'Hippo Delivery stack',
+      'Name': env + '-' + role|replace('_', '-')
+    }) }}"
