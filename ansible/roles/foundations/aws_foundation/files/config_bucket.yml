@@ -22,6 +22,6 @@ Resources:
     DeletionPolicy: "Retain"
     Properties:
       AccessControl: !Ref AccessControl
-      BucketName: !Sub "config.${Environment}.digital.nhs.uk"
+      BucketName: !Sub "config.${Environment}.nhsd.io"
       VersioningConfiguration:
         Status: !Ref Versioning

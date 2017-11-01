@@ -2,8 +2,8 @@
 
 # global shortcuts
 env: &ENV dev
-config_bucket: "config.{{ env }}.digital.nhs.uk"
-public_fqdn: &FQDN dev.ps.digital.nhs.uk
+config_bucket: "config.{{ env }}.nhsd.io"
+public_fqdn: &FQDN dev.ps.nhsd.io
 
 aws:
   tags:
@@ -11,7 +11,7 @@ aws:
     Environment: *ENV
 
 aws_cd:
-  public_fqdn: digital.nhs.uk
+  public_fqdn: nhsd.io
   pipelines:
     build:
       enabled: yes

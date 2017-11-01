@@ -151,6 +151,7 @@ Resources:
       VpcId:
         Fn::ImportValue: !Sub "${Environment}-vpc::VpcId"
       SecurityGroupIngress:
+        # IW network
         - IpProtocol: tcp
           FromPort: 80
           ToPort: 80
@@ -159,6 +160,15 @@ Resources:
           FromPort: 443
           ToPort: 443
           CidrIp: 156.67.242.53/32
+        # NHS Digital network
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 194.176.105.0/24
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 194.176.105.0/24
       Tags:
         - Key: Name
           Value: !Sub "${Environment}-hippo-authoring"
