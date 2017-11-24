@@ -1,0 +1,216 @@
+---
+
+Description: Build and deploy pipeline for ps-hippo
+
+Parameters:
+  GithubToken:
+    Description: GitHub OAuth Token
+    Type: String
+
+  HostedDomainPublic:
+    Description: Public R53 domain name
+    Type: String
+
+  ConfigBucket:
+    Description: Configuration S3 bucket
+    Type: String
+
+Resources:
+  BuilderPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: PS Hippo Build Policy
+      Path: /
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - cloudwatch:*
+            Resource: "*"
+          # Allow access to artefacts bucket
+          - Effect: Allow
+            Action:
+              - s3:*
+            Resource:
+              - !Sub "arn:aws:s3:::artefacts.${HostedDomainPublic}"
+              - !Sub "arn:aws:s3:::artefacts.${HostedDomainPublic}/*"
+          # Allow CodeBuild access to configuration backet
+          - Effect: Allow
+            Action:
+              - s3:get*
+              - s3:list*
+            Resource:
+              - !Sub "arn:aws:s3:::${ConfigBucket}"
+              - !Sub "arn:aws:s3:::${ConfigBucket}/codebuild/ps_hippo_build/*"
+          # Allow CodePipeline access to CodeBuild
+          - Effect: Allow
+            Action:
+              - codebuild:StartBuild
+              - codebuild:BatchGetBuilds
+            Resource:
+              - !Sub "arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:project/ps_hippo_package"
+              - !Sub "arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:project/ps_hippo_build"
+          # Allow CodeBuild access to log streams
+          - Effect: Allow
+            Action:
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Resource:
+              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/ps_hippo_package:*"
+              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/ps_hippo_build:*"
+
+  BuildRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+          - Effect: Allow
+            Principal:
+              Service:
+                - codebuild.amazonaws.com
+                - codepipeline.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - Ref: BuilderPolicy
+      Path: /
+      RoleName: PsHippoBuildRole
+
+  ##
+  # Prepare and check ps-hippo repo
+  #
+  PsHippoRepoLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/codebuild/ps_hippo_package
+      RetentionInDays: 7
+
+  PsHippoRepoCodeBuild:
+    DependsOn:
+      - PsHippoRepoLogGroup
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Location: !Sub "artefacts.${HostedDomainPublic}"
+        Type: S3
+        Name: ps_hippo.zip
+        NamespaceType: NONE
+        Path: ps-hippo
+        Packaging: ZIP
+      Description: Package ps-hippo repo for other builds
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: woledzki/alpine-virtualenv:latest
+        Type: LINUX_CONTAINER
+      Name: ps_hippo_package
+      ServiceRole: !GetAtt [ "BuildRole", "Arn" ]
+      Source:
+        BuildSpec: buildspec_package.yml
+        Auth:
+          Type: OAUTH
+        Type: GITHUB
+        Location: https://github.com/NHS-digital-website/ps-hippo.git
+      TimeoutInMinutes: 15
+
+  ##
+  # Build, Test, Tag and Upload
+  #
+  PsHippoBuildLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/codebuild/ps_hippo_build
+      RetentionInDays: 7
+
+  PsHippoBuildCodeBuild:
+    DependsOn:
+      - PsHippoBuildLogGroup
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Location: !Sub "artefacts.${HostedDomainPublic}"
+        Type: S3
+        Name: ps_hippo.zip
+        NamespaceType: NONE
+        Path: ps-hippo
+        Packaging: ZIP
+      Description: Build, Test, Tag and Upload
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: selenium/standalone-chrome:latest
+        Type: LINUX_CONTAINER
+      Name: ps_hippo_build
+      ServiceRole: !GetAtt [ "BuildRole", "Arn" ]
+      Source:
+        BuildSpec: buildspec.yml
+        Auth:
+          Type: OAUTH
+        Type: GITHUB
+        Location: https://github.com/NHS-digital-website/ps-hippo.git
+      TimeoutInMinutes: 30
+
+  PsHippoPipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      ArtifactStore:
+        Location: !Sub "artefacts.${HostedDomainPublic}"
+        Type: S3
+      Name: PsHippoBuild
+      RoleArn: !GetAtt [ "BuildRole", "Arn" ]
+      Stages:
+        # Code Change
+        - Name: SourceCode
+          Actions:
+            - Name: Github
+              ActionTypeId:
+                Category: Source
+                Owner: ThirdParty
+                Provider: GitHub
+                Version: 1
+              Configuration:
+                Owner: NHS-digital-website
+                OAuthToken: !Ref GithubToken
+                Repo: ps-hippo
+                Branch: master
+              OutputArtifacts:
+                - Name: GithubOutput
+              RunOrder: 1
+        # Package
+        - Name: Package
+          Actions:
+            - Name: Initialise
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: 1
+              Configuration:
+                ProjectName: ps_hippo_package
+              InputArtifacts:
+                - Name: GithubOutput
+              OutputArtifacts:
+                - Name: PsHippoPackage
+              RunOrder: 1
+        # Build
+        - Name: Build
+          Actions:
+            - Name: Initialise
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: 1
+              Configuration:
+                ProjectName: ps_hippo_build
+              InputArtifacts:
+                - Name: PsHippoPackage
+              OutputArtifacts:
+                - Name: PsHippoPackage2
+              RunOrder: 1

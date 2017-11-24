@@ -42,3 +42,18 @@
       'Name': 'aws-cd-code-pipeline-build'
     }) }}"
   when: aws_cd.pipelines.build.enabled
+
+- name: Ensure PS Hippo Pipelines
+  cloudformation:
+    stack_name: "aws-cd-code-pipeline-ps-hippo"
+    state: present
+    template: "{{ role_path }}/files/code_pipeline_ps_hippo.yml"
+    template_parameters:
+      HostedDomainPublic: "{{ aws_cd.public_fqdn }}"
+      ConfigBucket: "{{ config_bucket }}"
+      GithubToken: "{{ aws_cd.pipelines.build.github.token }}"
+    tags: "{{ aws.tags | combine({
+      'Role': role,
+      'Description': 'PS Hippo Build Pipelines',
+      'Name': 'aws-cd-code-pipeline-ps-hippo'
+    }) }}"

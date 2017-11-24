@@ -6,4 +6,4 @@
     state: present
     template: "{{ role_path }}/files/config_bucket.yml"
     template_parameters:
-      Environment: "{{ env }}"
+      ConfigBucket: "{{ config_bucket }}"
