@@ -8,7 +8,7 @@ Parameters:
     Description: Access control for bucket
     Type: String
     Default: AuthenticatedRead
-  Environment:
+  ConfigBucket:
     Description: Environment name
     Type: String
   Versioning:
@@ -22,6 +22,6 @@ Resources:
     DeletionPolicy: "Retain"
     Properties:
       AccessControl: !Ref AccessControl
-      BucketName: !Sub "config.${Environment}.nhsd.io"
+      BucketName: !Ref ConfigBucket
       VersioningConfiguration:
         Status: !Ref Versioning

@@ -2,7 +2,7 @@
 
 # global shortcuts
 env: &ENV dev
-config_bucket: "config.{{ env }}.nhsd.io"
+config_bucket: "config.{{ env }}.ps.nhsd.io"
 public_fqdn: &FQDN dev.ps.nhsd.io
 
 aws:
