@@ -1,5 +1,16 @@
 ---
 
+- name: Ensure Hippo Mysql Config
+  cloudformation:
+    stack_name: "{{ env }}-hippo-authoring-rds-parameters"
+    state: "{{ hippo_authoring.state }}"
+    template: "{{ role_path }}/files/rds_parameter_group.yml"
+    tags: "{{ aws.tags | combine({
+      'Role': role|replace('_', '-'),
+      'Description': 'Hippo Authoring RDS parameters',
+      'Name': env + '-' + role|replace('_', '-')
+    }) }}"
+
 - include_role:
     name: rds_mysql
   vars:
