@@ -1,0 +1,23 @@
+---
+
+Description: Hippo DB Config
+AWSTemplateFormatVersion: 2010-09-09
+
+Resources:
+
+  HippoMysqlConfig:
+    Type: "AWS::RDS::DBParameterGroup"
+    Properties:
+      Description: Hippo CMS Mysql config
+      Family: MySQL5.6
+      Parameters:
+        # to allow up to 100M file upload in CMS
+        innodb_log_file_size: 1572864000
+        max_allowed_packet: 157286400
+
+Outputs:
+  HippoMysqlConfig:
+    Description: Hippo CMS Mysql config
+    Export:
+      Name: !Sub "${AWS::StackName}::HippoMysqlConfig"
+    Value: !Ref HippoMysqlConfig

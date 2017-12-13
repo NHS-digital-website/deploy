@@ -89,6 +89,8 @@ Resources:
       BackupRetentionPeriod: !Ref BackupRetentionPeriod
       DBInstanceClass: !Ref InstanceType
       DBInstanceIdentifier: !Sub "${Environment}-${Role}"
+      DBParameterGroupName:
+        Fn::ImportValue: !Sub "${Environment}-hippo-authoring-rds-parameters::HippoMysqlConfig"
       DBSubnetGroupName: !Ref Subnet
       Engine: MySQL
       EngineVersion: !Ref Version
