@@ -1,11 +1,11 @@
-# Continous Delivery using AWS Services
+# Continuous Delivery using AWS Services
 
 
 
 
 # CodeBuild
 
-AMIs are build using CodeBuild
+CodeBuild is used to build AMI and to build & deploy Hippo CMS.
 
 
 

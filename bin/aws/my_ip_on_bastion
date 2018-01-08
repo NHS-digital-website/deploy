@@ -1,0 +1,26 @@
+#!/bin/bash
+
+CMD="$(basename "${BASH_SOURCE[0]}")"
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# shellcheck source=./../base.sh
+source "${DIR}/../base.sh"
+
+function usage {
+	die "Usage: ${CMD} add|del environment"
+}
+
+function main {
+	local action=$1
+	local env=$2
+
+	[[ -n "${action}" ]] || usage
+	[[ -n "${env}" ]] || usage
+
+	MY_IP=$(curl --silent https://api.ipify.org)
+
+	# add IP to environment bastion SG
+	"${DIR}/ip_on_bastion" "${action}" "${MY_IP}/32" "${env}"
+}
+
+main "$@"

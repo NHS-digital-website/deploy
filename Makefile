@@ -5,6 +5,7 @@ ENV ?= dev
 KEY_NAME ?=
 PWD = $(shell pwd)
 REGION ?= eu-west-1
+USERNAME ?= $(whoami)
 VENV ?= $(PWD)/ansible/.venv
 VERSION ?= $(shell git describe --tags)
 
@@ -71,6 +72,9 @@ stack: $(VENV) ansible/vars/$(ENV)/secrets.yml ansible/roles/vendor
 		$(EXTRAS) \
 		playbooks/stack.yml
 
+jump:
+	bin/aws/jump $(ROLE) $(ENV) $(USERNAME)
+
 ## Create new version tag based on the nearest tag
 version.bumpup:
 	@git tag $$((git describe --abbrev=0 --tags | grep $$(cat .version) || echo $$(cat .version).-1) | perl -pe 's/^(v(\d+\.)*)(-?\d+)(.*)$$/$$1.($$3+1).$$4/e')
@@ -81,6 +85,10 @@ version.print:
 	@echo "- - -"
 	@echo "Current version: $(VERSION)"
 	@echo "- - -"
+
+docs: .phony
+	rm docs/dot/*.svg
+	find docs/dot -name "*.dot" -print0 | xargs -0 -I{} dot -Tsvg -O {}
 
 ansible/roles/vendor: $(VENV) .phony
 	ansible-galaxy install -p ansible/roles/vendor -r ansible/roles/vendor.yml --ignore-errors

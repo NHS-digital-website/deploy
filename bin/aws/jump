@@ -1,0 +1,81 @@
+#!/bin/bash
+
+##
+# This is how "User Name: is determined (first matched wins)
+# * environment vairable: USERNAME
+# * whoami
+#
+# Usage:
+# ./bin/jump [ROLE] [ENV] [USERNAME]
+# ./bin/jump hippo_delivery dev user.name
+#
+
+DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+
+# shellcheck source=./../base.sh
+. $DIR/../base.sh
+
+function main {
+	ROLE=$1
+	ENVIRONMENT=$2
+	USERNAME=$3
+
+	info "Select ${ROLE} box instance to SSH into (loading...):"
+	ips=$(aws ec2 describe-instances \
+		--region eu-west-1 \
+		--filters "Name=tag:Environment,Values=${ENVIRONMENT}" "Name=tag:Role,Values=${ROLE//_/-}" \
+		--output text \
+		--query 'Reservations[*].Instances[*].PrivateIpAddress')
+
+	if [ -z "$ips" ]; then
+		error "Problem getting ${ROLE} role ip on ${ENVIRONMENT} environment, quitting"
+		exit 1
+	fi
+
+	select ip in $ips "quit";
+	do
+		case $ip in
+			"quit")
+				break
+				;;
+			*)
+				jump "${ip}" "${ENVIRONMENT}" "${USERNAME}"
+				break
+				;;
+		esac
+	done
+}
+
+function jump {
+	local ip=$1
+	local env=$2
+	local username=$3
+	local bastion="bastion.${env}.ps.nhsd.io"
+	local ip_added=0
+
+	ok "Testing bastion connection (${username}@${bastion})"
+	if ssh -q -o ConnectTimeout=1 "${username}@${bastion}" exit; then
+		info "connection OK"
+	else
+		info "Adding your IP to bastion SG"
+		"$DIR/my_ip_on_bastion" "add" "${env}" && ip_added=1
+	fi
+
+	ok "Jumping to ${username}@$ip (over ${username}@${bastion})"
+
+	# remove any previous entries for bastion or destination box
+	ssh-keygen -R "${bastion}"
+	ssh-keygen -R "${ip}"
+
+	ssh -o ProxyCommand="ssh -o StrictHostKeyChecking=no -o ForwardAgent=yes -A ${username}@${bastion} -W %h:%p" \
+		-o ForwardAgent=yes \
+		-o StrictHostKeyChecking=no \
+		"${username}"@"${ip}"
+
+	if [[ "${ip_added}" == "1" ]]; then
+		info "Removing your IP from bastion SG"
+		"$DIR/my_ip_on_bastion" del "${env}"
+	fi
+}
+
+main "$@"

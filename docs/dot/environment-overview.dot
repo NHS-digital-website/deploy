@@ -1,0 +1,29 @@
+digraph finite_state_machine {
+  rankdir=LR;
+
+  internet [shape=rectangle]
+
+  subgraph cluster_aws {
+    label = "AWS dev environment"
+
+    subgraph cluster_public {
+      label = "public subnets"
+      bastion
+      "ELB hippo_delivery"
+      "ELB hippo_authoring"
+    }
+    subgraph cluster_private {
+      label = "private subnets"
+      hippo_authoring
+      hippo_delivery
+    }
+  }
+
+  internet -> bastion
+  bastion -> hippo_delivery [dir=none]
+  bastion -> hippo_authoring [dir=none]
+
+  internet -> "ELB hippo_delivery" -> hippo_delivery
+  internet -> "ELB hippo_authoring" -> hippo_authoring
+
+}

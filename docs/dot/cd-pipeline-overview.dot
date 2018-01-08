@@ -1,0 +1,20 @@
+digraph finite_state_machine {
+  rankdir=LR;
+  node [ shape=rectangle, style="rounded,filled" ];
+
+  GitHub
+  OnDemmand
+
+  subgraph cluster_aws {
+    label = "AWS environment"
+
+    CodePipeline
+    CodeBuild
+    "S3 Bucket"
+  }
+
+  GitHub -> CodePipeline
+  CodePipeline -> CodeBuild [ label="uses" ]
+  "S3 Bucket" -> CodeBuild [ label="provide secrets" ]
+  CodeBuild -> OnDemmand [ label="deploys"]
+}
