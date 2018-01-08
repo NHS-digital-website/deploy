@@ -1,0 +1,42 @@
+digraph G {
+	layout=dot
+	overlap=false
+	rank=max
+
+	node [shape=doublecircle, style="filled" ];
+	"ps-hippo" "ps-build" "ps-deploy";
+	Travis [fixedsize=true, width=2];
+
+	node [shape=circle, style="rounded,filled" ];
+
+	subgraph cluster_github {
+		node [shape="circle"]; "ps-hippo";
+		node [shape="box"];
+		label = "GitHub ps-hippo";
+
+		"ps-hippo" -> { "ps-hippo Feature Branch" "ps-hippo Master Branch" } [dir=none];
+		"ps-hippo Feature Branch" -> "ps-hippo Master Branch" [ label = "Approved Pull Request"];
+	}
+
+	subgraph cluster_github2 {
+		node [shape="circle"]; "ps-build";
+		node [shape="box"];
+		label = "GitHub ps-build";
+
+		"ps-build" -> { "ps-build Feature Branch" "ps-build Master Branch" } [dir=none];
+		"ps-build Feature Branch" -> "ps-build Master Branch" [ label = "Approved Pull Request"];
+	}
+
+	subgraph cluster_github3 {
+		node [shape="circle"]; "ps-deploy";
+		node [shape="box"];
+		label = "GitHub ps-deploy";
+
+		"ps-deploy" -> { "ps-deploy Feature Branch" "ps-deploy Master Branch" } [dir=none];
+		"ps-deploy Feature Branch" -> "ps-deploy Master Branch" [ label = "Approved Pull Request"];
+	}
+
+	"ps-build Feature Branch" -> Travis [ label = "Continuous Integration", dir=both];
+	"ps-deploy Feature Branch" -> Travis [ label = "Continuous Integration", dir=both];
+	"ps-hippo Feature Branch" -> Travis [ label = "Continuous Integration", dir=both];
+}

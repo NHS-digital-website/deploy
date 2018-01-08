@@ -1,0 +1,16 @@
+digraph finite_state_machine {
+  rankdir=LR;
+  node [ style="rounded,filled" ];
+
+  developer [shape=rectangle]
+
+  subgraph cluster_aws {
+    label = "AWS dev environment"
+
+    bastion
+    bastion -> hippo_delivery [dir=none]
+    bastion -> hippo_authoring [dir=none]
+  }
+
+  developer -> bastion
+}

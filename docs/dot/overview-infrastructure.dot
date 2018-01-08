@@ -1,0 +1,33 @@
+digraph G {
+	rankdir=LR;
+	layout=dot
+	overlap=false
+	rank=max
+
+	node [shape=doublecircle, style="filled" ];
+	"ps-hippo Master Branch" [fixedsize=true, width=2];
+	OnDemand [fixedsize=true, width=2];
+	node [shape=circle, style="rounded,filled" ];
+
+	subgraph cluster_github {
+		node [shape="circle"]; "ps-hippo";
+		node [shape="box"];
+		label = "GitHub ps-hippo";
+
+		"ps-hippo" -> { "ps-hippo Master Branch" } [dir=none];
+	}
+
+	subgraph cluster_pipeline {
+		rankdir=BT;
+		node [shape="box"];
+		label = "Code Pipeline - PS Hippo";
+
+		"Test & Build" -> "Tag & Upload" -> Deploy;
+	}
+
+	"ps-hippo Master Branch" -> "Test & Build" [ label = "Continuous Delivery" ];
+	"Tag & Upload" -> "ps-hippo" [ label = "create tags" ];
+	"Tag & Upload" -> "AWS - S3" [ label = "store distribution" ];
+	"Tag & Upload" -> OnDemand [ label = "store distribution" ];
+	Deploy -> OnDemand [ label = "deploy" ];
+}

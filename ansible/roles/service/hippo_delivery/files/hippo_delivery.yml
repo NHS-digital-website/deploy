@@ -160,6 +160,15 @@ Resources:
           FromPort: 443
           ToPort: 443
           CidrIp: 156.67.242.53/32
+        # IW VPN
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 52.51.7.138/32
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 52.51.7.138/32
         # NHS Digital network
         - IpProtocol: tcp
           FromPort: 80
@@ -169,6 +178,32 @@ Resources:
           FromPort: 443
           ToPort: 443
           CidrIp: 194.176.105.0/24
+        # Valtech Office
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 51.179.154.252/32
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 51.179.154.252/32
+        # Sitemorse service
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 162.13.50.12/32
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 162.13.50.12/32
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 162.13.50.14/32
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 162.13.50.14/32
       Tags:
         - Key: Name
           Value: !Sub "${Environment}-hippo-delivery"

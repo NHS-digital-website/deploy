@@ -1,0 +1,52 @@
+#!/bin/bash
+
+CMD="$(basename "${BASH_SOURCE[0]}")"
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DATA_FOLDER="${DIR}/.tmp"
+
+# shellcheck source=./../base.sh
+source "${DIR}/../base.sh"
+
+function usage {
+	die "Usage: ${CMD} add|del cidr env"
+}
+
+function main {
+	local method=$1
+	local ip=$2 # this should be CIDR, like 1.2.3.4/32
+	local env=$3
+	local command="revoke-security-group-ingress"
+	local data_file="${DATA_FOLDER}/my_ip_on_bastion-${env}"
+	local bastion_sg=""
+
+	if [[ "${method}" == "add" ]]; then
+		command="authorize-security-group-ingress"
+	fi
+
+	info "running ${command} on ${ip}"
+
+	# find bastion SG for given environment
+	bastion_sg=$(aws ec2 describe-security-groups \
+		--filters Name=tag-key,Values=Name "Name=tag-value,Values=${env}-bastion" \
+		--query SecurityGroups[*][GroupId] \
+		--output text)
+
+	# add or remove IP from SG
+	aws ec2 ${command} \
+		--group-id "${bastion_sg}" \
+		--port 22 \
+		--protocol tcp \
+		--cidr "${ip}"
+
+	if [[ "${method}" == "add" ]]; then
+		# save IP in data file
+		echo "${ip}" >> "${data_file}"
+	else
+		# remove IP from data file
+		local ip_pattern=${ip//./\\.}
+		ip_pattern=${ip_pattern//\//\\\/}
+		sed -i.bak "/${ip_pattern}/d" "${data_file}"
+	fi
+}
+
+main "$@"
