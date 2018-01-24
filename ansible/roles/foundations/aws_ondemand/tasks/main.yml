@@ -1,0 +1,15 @@
+---
+
+- name: Ensure OnDemand Domains
+  cloudformation:
+    stack_name: "aws-ondemand-domains"
+    state: present
+    template: "{{ role_path }}/files/domains.yml"
+    template_parameters:
+      HostedDomain: "{{ aws_ondemand.public_fqdn }}"
+      HostedZoneId: "{{ aws_ondemand.hosted_zone_id }}"
+    tags: "{{ aws.tags | combine({
+      'Role': role,
+      'Description': 'Domains setup for onDemand environments',
+      'Name': 'aws-ondemand-domains'
+    }) }}"

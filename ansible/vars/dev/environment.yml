@@ -10,6 +10,10 @@ aws:
     Project: Publication Service
     Environment: *ENV
 
+aws_ondemand:
+  public_fqdn: nhsd.io
+  hosted_zone_id: Z37KMFR2PGJ2AX
+
 aws_cd:
   public_fqdn: nhsd.io
   pipelines:

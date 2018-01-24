@@ -1,0 +1,59 @@
+---
+
+Parameters:
+  HostedZoneId:
+    Description: Hosted Zone Id
+    Type: String
+
+  HostedDomain:
+    Description: Public root domain name
+    Type: String
+
+Resources:
+  ##
+  # TST - Tests / Early Integration
+  #
+  TstDnsRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Comment: UAT Hippo Site
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Sub "tst.${HostedDomain}"
+      TTL: 300
+      Type: CNAME
+      ResourceRecords:
+        - www.nhs.test.onehippo.com
+  TstCmsDnsRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Comment: UAT Hippo Site
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Sub "cms-tst.${HostedDomain}"
+      TTL: 300
+      Type: CNAME
+      ResourceRecords:
+        - cms-nhs.test.onehippo.com
+
+  ##
+  # UAT - User Acceptance
+  #
+  UatDnsRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Comment: UAT Hippo Site
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Sub "uat.${HostedDomain}"
+      TTL: 300
+      Type: CNAME
+      ResourceRecords:
+        - www.nhs.acct.onehippo.com
+  UatCmsDnsRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Comment: UAT Hippo Site
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Sub "cms-uat.${HostedDomain}"
+      TTL: 300
+      Type: CNAME
+      ResourceRecords:
+        - cms-nhs.acct.onehippo.com

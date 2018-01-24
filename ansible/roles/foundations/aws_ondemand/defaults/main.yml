@@ -1,0 +1,5 @@
+---
+
+aws_ondemand:
+  public_fqdn: nhsd.io
+  hosted_zone_id: ~
