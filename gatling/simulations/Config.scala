@@ -4,6 +4,6 @@ object Config {
 		System.getProperty("baseUrl")
 	} else {
 		// default address
-		"http://localhost:8080/site"
+		"http://localhost:8080"
 	}
 }
