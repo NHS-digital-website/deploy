@@ -6,7 +6,7 @@ import io.gatling.core.Predef._
 import io.gatling.http.Predef._
 import io.gatling.jdbc.Predef._
 
-class LoadTest extends Simulation {
+class NilLoadTester extends Simulation {
 
 	println("baseUrl: ".concat(Config.host))
 
@@ -22,18 +22,13 @@ class LoadTest extends Simulation {
 		.acceptLanguageHeader("en,pl;q=0.9,en-US;q=0.8")
 		.userAgentHeader("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.84 Safari/537.36")
 
-	val publicationSystem = new PublicationSystemLoadTest()
-	val downloads = new DownloadAttachmentsLoadTest()
-	var browsingWithPauses = new BrowsingWithPausesLoadTest()
+	val indicatorLibrary = new IndicatorLibraryLoadTest()
 
 	// Adjust the value of constantUsersPerSec accordingly.
 	// Note: 1 user will perfrom around 150 requests based on the links
   	// defined in PublicationSystemLoadTest and DownloadAttachmentsLoadTest
 	setUp(List(
-		publicationSystem.scn.inject(
-			constantUsersPerSec(INJECT_USERS_PER_SEC) during(INJECT_USERS_DURING_SECONDS seconds) randomized,
-		),
-		downloads.scn.inject(
+		indicatorLibrary.scn.inject(
 			constantUsersPerSec(INJECT_USERS_PER_SEC) during(INJECT_USERS_DURING_SECONDS seconds) randomized,
 		)
 	)).protocols(httpProtocol)
