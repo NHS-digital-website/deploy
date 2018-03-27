@@ -1,0 +1,15 @@
+---
+
+- name: Ensure {{ env }} Environment Permissions
+  cloudformation:
+    stack_name: "aws-{{ env }}-permissions"
+    state: present
+    template: "{{ role_path }}/files/policies.yml"
+    template_parameters:
+      FilesBucket: "{{ aws_permissions.files_bucket_name }}"
+      Environment: "{{ env }}"
+    tags: "{{ aws.tags | combine({
+      'Role': role,
+      'Description': 'Define policies for ' + env + ' environment',
+      'Name': 'aws-tst-permissions'
+    }) }}"

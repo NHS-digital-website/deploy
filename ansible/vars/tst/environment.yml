@@ -1,0 +1,21 @@
+---
+
+# global shortcuts
+env: &ENV tst
+config_bucket: "config.{{ env }}.ps.nhsd.io"
+public_fqdn: &FQDN tst.nhsd.io
+
+aws:
+  tags:
+    Project: Digital Website
+    Environment: *ENV
+
+aws_ondemand:
+  public_fqdn: nhsd.io
+  hosted_zone_id: Z37KMFR2PGJ2AX
+  bloomreach_environment: test
+  with_cloudfront: disabled
+  files_host: files.tst.nhsd.io
+
+aws_permissions:
+  files_bucket_name: files.tst.nhsd.io

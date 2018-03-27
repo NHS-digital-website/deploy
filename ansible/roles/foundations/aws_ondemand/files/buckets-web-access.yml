@@ -1,0 +1,81 @@
+---
+
+Parameters:
+  CertificateId:
+    Description: IAM SSL Certificate Id
+    Type: String
+
+  Environment:
+    Description: Environment Name
+    Type: String
+
+  FilesHost:
+    Type: String
+
+  HostedDomain:
+    Description: Public root domain name
+    Type: String
+
+  HostedZoneId:
+    Description: Hosted Zone Id
+    Type: String
+
+  CloudfrontStatus:
+    Type: String
+    AllowedValues:
+      - enabled
+      - disabled
+
+Conditions:
+  WithCloudFront:
+    Fn::Equals:
+      - !Ref CloudfrontStatus
+      - enabled
+
+Resources:
+  FilesCloudFront:
+    Condition: WithCloudFront
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Aliases:
+          - !Ref FilesHost
+        DefaultCacheBehavior:
+          AllowedMethods:
+            - HEAD
+            - GET
+          CachedMethods:
+            - HEAD
+            - GET
+          ForwardedValues:
+            Cookies:
+              Forward: none
+            Headers: [ ]
+            QueryString: false
+          TargetOriginId: s3
+          ViewerProtocolPolicy: redirect-to-https
+        Enabled: true
+        Origins:
+          - DomainName:
+              Fn::ImportValue: !Sub "${Environment}-ondemand-files-bucket--DomainName"
+            Id: s3
+            S3OriginConfig:
+              OriginAccessIdentity: ""
+        PriceClass: PriceClass_100
+        ViewerCertificate:
+          IamCertificateId: !Ref CertificateId
+          SslSupportMethod: sni-only
+
+  DnsRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Comment: !Sub "Files on ${Environment}"
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Sub "files.${Environment}.${HostedDomain}"
+      TTL: 300
+      Type: CNAME
+      ResourceRecords:
+        - Fn::If:
+          - WithCloudFront
+          - !GetAtt FilesCloudFront.DomainName
+          - Fn::ImportValue: !Sub "${Environment}-ondemand-files-bucket--DomainName"

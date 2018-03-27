@@ -1,0 +1,23 @@
+---
+
+# global shortcuts
+env: &ENV prd
+config_bucket: "config.{{ env }}.ps.nhsd.io"
+public_fqdn: &FQDN digital.nhs.uk
+
+aws:
+  tags:
+    Project: Digital Website
+    Environment: *ENV
+
+aws_ondemand:
+  public_fqdn: nhsd.io
+  hosted_zone_id: Z37KMFR2PGJ2AX
+  bloomreach_environment: hosting
+  with_cloudfront: enabled
+  files_certificate_arn: arn:aws:iam::186991146235:server-certificate/cloudfront/prd/digital.nhs.uk-2018.03.21
+  files_certificate_id: ASCAJD2Y24BBVKUMI2WI6
+  files_host: files.digital.nhs.uk
+
+aws_permissions:
+  files_bucket_name: files.digital.nhs.uk

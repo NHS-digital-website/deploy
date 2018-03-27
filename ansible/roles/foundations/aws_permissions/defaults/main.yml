@@ -1,0 +1,4 @@
+---
+
+aws_permissions:
+  files_bucket_name: files.local.nhsd.io

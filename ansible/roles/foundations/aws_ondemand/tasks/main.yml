@@ -2,14 +2,48 @@
 
 - name: Ensure OnDemand Domains
   cloudformation:
-    stack_name: "aws-ondemand-domains"
+    stack_name: "{{ env }}-ondemand-domains"
     state: present
     template: "{{ role_path }}/files/domains.yml"
     template_parameters:
+      Environment: "{{ env }}"
+      BloomreachEnvironment: "{{ aws_ondemand.bloomreach_environment }}"
       HostedDomain: "{{ aws_ondemand.public_fqdn }}"
       HostedZoneId: "{{ aws_ondemand.hosted_zone_id }}"
     tags: "{{ aws.tags | combine({
       'Role': role,
       'Description': 'Domains setup for onDemand environments',
       'Name': 'aws-ondemand-domains'
+    }) }}"
+
+- name: Ensure Files Buckets
+  cloudformation:
+    stack_name: "{{ env }}-ondemand-files-bucket"
+    state: present
+    template: "{{ role_path }}/files/buckets.yml"
+    template_parameters:
+      Environment: "{{ env }}"
+      FilesHost: "{{ aws_ondemand.files_host }}"
+    tags: "{{ aws.tags | combine({
+      'Role': role,
+      'Description': 'Bucket setup for files storage',
+      'Name': env + '-ondemand-files-bucket'
+    }) }}"
+
+- name: Ensure Files Buckets Web Access
+  cloudformation:
+    stack_name: "{{ env }}-ondemand-files-web-access"
+    state: present
+    template: "{{ role_path }}/files/buckets-web-access.yml"
+    template_parameters:
+      Environment: "{{ env }}"
+      HostedDomain: "{{ aws_ondemand.public_fqdn }}"
+      HostedZoneId: "{{ aws_ondemand.hosted_zone_id }}"
+      CloudfrontStatus: "{{ aws_ondemand.with_cloudfront }}"
+      CertificateId: "{{ aws_ondemand.files_certificate_id }}"
+      FilesHost: "{{ aws_ondemand.files_host }}"
+    tags: "{{ aws.tags | combine({
+      'Role': role,
+      'Description': 'Bucket setup for files storage',
+      'Name': env + '-ondemand-files-bucket'
     }) }}"

@@ -3,3 +3,6 @@
 aws_ondemand:
   public_fqdn: nhsd.io
   hosted_zone_id: ~
+  bloomreach_environment: ~
+  with_cloudfront: disabled
+  files_certificate_id: ""

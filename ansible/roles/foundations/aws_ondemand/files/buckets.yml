@@ -1,0 +1,32 @@
+---
+
+Parameters:
+  Environment:
+    Description: Environment Name
+    Type: String
+
+  FilesHost:
+    Type: String
+
+Resources:
+  FilesBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    Properties:
+      AccessControl: Private
+      BucketName: !Ref FilesHost
+      VersioningConfiguration:
+        Status: Suspended
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: error.html
+
+Outputs:
+  DomainName:
+    Description: Bucket domain name
+    Export:
+      Name: !Sub "${AWS::StackName}--DomainName"
+    # This is horrible, but it works.
+    # The FilesBucket.DomainName return region agnostic domain which then causes S3 to redirect
+    # to *.s3-$region.amazonaws.com
+    Value: !Sub "${FilesHost}.s3-${AWS::Region}.amazonaws.com"

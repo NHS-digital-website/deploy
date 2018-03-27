@@ -26,6 +26,13 @@ Resources:
         Statement:
           - Effect: Allow
             Action:
+              - ssm:GetParameters
+            Resource:
+              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/HIPPO_MAVEN_USERNAME"
+              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/HIPPO_MAVEN_PASSWORD"
+              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/GITHUB_TOKEN"
+          - Effect: Allow
+            Action:
               - cloudwatch:*
             Resource: "*"
           # Allow access to artefacts bucket
@@ -105,13 +112,24 @@ Resources:
         NamespaceType: NONE
         Path: hippo
         Packaging: ZIP
-      Description: Package hippo repo for other builds
+      Description: Get full git repo for use in subsequent steps
       Environment:
         ComputeType: BUILD_GENERAL1_SMALL
         # we don't need chrome for this job, but for simplicity let's use the same
         # image for both jobs `ps_hippo_package` and ps_hippo_build.
-        Image: selenium/standalone-chrome:latest
+        Image: woledzki/ubuntu-chrome:latest
+        # Image: selenium/standalone-chrome:latest
         Type: LINUX_CONTAINER
+        EnvironmentVariables:
+          - Name: HIPPO_MAVEN_USERNAME
+            Type: PARAMETER_STORE
+            Value: HIPPO_MAVEN_USERNAME
+          - Name: HIPPO_MAVEN_PASSWORD
+            Type: PARAMETER_STORE
+            Value: HIPPO_MAVEN_PASSWORD
+          - Name: GITHUB_TOKEN
+            Type: PARAMETER_STORE
+            Value: GITHUB_TOKEN
       Name: ps_hippo_package
       ServiceRole: !GetAtt [ "BuildRole", "Arn" ]
       Source:
@@ -146,8 +164,20 @@ Resources:
       Description: Build, Test, Tag and Upload
       Environment:
         ComputeType: BUILD_GENERAL1_SMALL
-        Image: selenium/standalone-chrome:latest
+        Image: woledzki/ubuntu-chrome:latest
         Type: LINUX_CONTAINER
+        EnvironmentVariables:
+          - Name: ENV
+            Value: uat
+          - Name: HIPPO_MAVEN_USERNAME
+            Type: PARAMETER_STORE
+            Value: HIPPO_MAVEN_USERNAME
+          - Name: HIPPO_MAVEN_PASSWORD
+            Type: PARAMETER_STORE
+            Value: HIPPO_MAVEN_PASSWORD
+          - Name: GITHUB_TOKEN
+            Type: PARAMETER_STORE
+            Value: GITHUB_TOKEN
       Name: ps_hippo_build
       ServiceRole: !GetAtt [ "BuildRole", "Arn" ]
       Source:

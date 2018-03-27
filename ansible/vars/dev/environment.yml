@@ -3,16 +3,12 @@
 # global shortcuts
 env: &ENV dev
 config_bucket: "config.{{ env }}.ps.nhsd.io"
-public_fqdn: &FQDN dev.ps.nhsd.io
+public_fqdn: &FQDN dev.nhsd.io
 
 aws:
   tags:
     Project: Publication Service
     Environment: *ENV
-
-aws_ondemand:
-  public_fqdn: nhsd.io
-  hosted_zone_id: Z37KMFR2PGJ2AX
 
 aws_cd:
   public_fqdn: nhsd.io
@@ -33,3 +29,13 @@ hippo_authoring:
     root_user: root
     user: hippocms
     dbname: hippocms
+
+aws_ondemand:
+  public_fqdn: nhsd.io
+  hosted_zone_id: Z37KMFR2PGJ2AX
+  bloomreach_environment: dev
+  with_cloudfront: disabled
+  files_host: files.dev.nhsd.io
+
+aws_permissions:
+  files_bucket_name: files.dev.nhsd.io
