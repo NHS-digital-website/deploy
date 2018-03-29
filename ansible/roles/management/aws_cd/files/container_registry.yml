@@ -7,7 +7,7 @@ Resources:
   CodeBuild:
     Type: "AWS::ECR::Repository"
     Properties:
-      RepositoryName: "codebuild/build"
+      RepositoryName: "codebuild/hippo"
       RepositoryPolicyText:
         Version: "2012-10-17"
         Statement:

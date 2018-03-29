@@ -7,10 +7,12 @@ Parameters:
   AccessControl:
     Description: Access control for bucket
     Type: String
-    Default: AuthenticatedRead
+    Default: Private
+
   ConfigBucket:
     Description: Environment name
     Type: String
+
   Versioning:
     Description: Versioning for bucket
     Type: String
@@ -19,7 +21,7 @@ Parameters:
 Resources:
   S3Bucket:
     Type: AWS::S3::Bucket
-    DeletionPolicy: "Retain"
+    DeletionPolicy: Retain
     Properties:
       AccessControl: !Ref AccessControl
       BucketName: !Ref ConfigBucket

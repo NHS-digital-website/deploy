@@ -2,35 +2,20 @@
 
 # global shortcuts
 env: &ENV dev
-config_bucket: "config.{{ env }}.ps.nhsd.io"
+config_bucket: "config.{{ env }}.nhsd.io"
 public_fqdn: &FQDN dev.nhsd.io
 
 aws:
   tags:
-    Project: Publication Service
+    Project: Digital Website
     Environment: *ENV
-
-aws_cd:
-  public_fqdn: nhsd.io
-  pipelines:
-    build:
-      enabled: yes
-      vpc_id: vpc-65b45401
-      subnet_id: subnet-543af230
 
 aws_foundation:
   environment_name: *ENV
   public_fqdn:
     - *FQDN
 
-hippo_authoring:
-  mysql:
-    host: hippo-authoring.mysql.db.int
-    root_user: root
-    user: hippocms
-    dbname: hippocms
-
-aws_ondemand:
+ondemand:
   public_fqdn: nhsd.io
   hosted_zone_id: Z37KMFR2PGJ2AX
   bloomreach_environment: dev

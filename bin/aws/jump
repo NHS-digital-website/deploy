@@ -50,7 +50,7 @@ function jump {
 	local ip=$1
 	local env=$2
 	local username=$3
-	local bastion="bastion.${env}.ps.nhsd.io"
+	local bastion="bastion.${env}.nhsd.io"
 	local ip_added=0
 
 	ok "Testing bastion connection (${username}@${bastion})"

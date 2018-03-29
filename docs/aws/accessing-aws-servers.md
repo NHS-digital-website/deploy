@@ -44,7 +44,7 @@ If you want/have to SSH to the box manually, here's what you need to do...
     ```
 1.  Ssh to bastion - make sure you enabled `ForwardAgent yes`.
     ```
-    ssh -A first.last@bastdion.dev.ps.nhsd.io
+    ssh -A first.last@bastdion.dev.nhsd.io
     ```
 1.  Ssh to the box of your choice using private IP
 

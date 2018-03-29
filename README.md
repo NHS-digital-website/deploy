@@ -1,6 +1,6 @@
 # NHS Digital Publication System
 
-[![Build Status](https://travis-ci.org/NHS-digital-website/ps-deploy.svg?branch=master)](https://travis-ci.org/NHS-digital-website/ps-deploy)
+[![Build Status](https://travis-ci.org/NHS-digital-website/deploy.svg?branch=master)](https://travis-ci.org/NHS-digital-website/deploy)
 
 * [Introduction](#introduction)
 * [Usage](#usage)
@@ -18,8 +18,8 @@ deploying NHS Digital Website.
 
 Currently we are supporting two platforms
 
-* **BloomReach onDemand** - deployment process.
-* **AWS** - build and manage entire environments and deployments process.
+* **BloomReach onDemand**
+* **AWS**
 
 
 
@@ -28,7 +28,22 @@ Currently we are supporting two platforms
 
 Run `make help` to get a list of available commands.
 
-For more details on how to use this repo, please read below docs
+In most cases you will run something like this:
+
+```
+# authenticate your terminal for 1h to access `nhsd-profile-name` AWS profile using
+# your MFA token.
+$(make aws-sudo PROFILE=nhsd-profile-name TOKEN=...)
+
+# run commands...
+make stack ROLE=aws_foundation ENV=mgt
+make stack ...
+```
+
+
+
+
+## Documentation
 
 * [Build and Maintain Continuous Deployment Pipelines]
 
