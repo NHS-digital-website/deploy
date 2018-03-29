@@ -7,9 +7,9 @@
     template: "{{ role_path }}/files/domains.yml"
     template_parameters:
       Environment: "{{ env }}"
-      BloomreachEnvironment: "{{ aws_ondemand.bloomreach_environment }}"
-      HostedDomain: "{{ aws_ondemand.public_fqdn }}"
-      HostedZoneId: "{{ aws_ondemand.hosted_zone_id }}"
+      BloomreachEnvironment: "{{ ondemand.bloomreach_environment }}"
+      HostedDomain: "{{ ondemand.public_fqdn }}"
+      HostedZoneId: "{{ ondemand.hosted_zone_id }}"
     tags: "{{ aws.tags | combine({
       'Role': role,
       'Description': 'Domains setup for onDemand environments',
@@ -23,7 +23,7 @@
     template: "{{ role_path }}/files/buckets.yml"
     template_parameters:
       Environment: "{{ env }}"
-      FilesHost: "{{ aws_ondemand.files_host }}"
+      FilesHost: "{{ ondemand.files_host }}"
     tags: "{{ aws.tags | combine({
       'Role': role,
       'Description': 'Bucket setup for files storage',
@@ -37,11 +37,11 @@
     template: "{{ role_path }}/files/buckets-web-access.yml"
     template_parameters:
       Environment: "{{ env }}"
-      HostedDomain: "{{ aws_ondemand.public_fqdn }}"
-      HostedZoneId: "{{ aws_ondemand.hosted_zone_id }}"
-      CloudfrontStatus: "{{ aws_ondemand.with_cloudfront }}"
-      CertificateId: "{{ aws_ondemand.files_certificate_id }}"
-      FilesHost: "{{ aws_ondemand.files_host }}"
+      HostedDomain: "{{ ondemand.public_fqdn }}"
+      HostedZoneId: "{{ ondemand.hosted_zone_id }}"
+      CloudfrontStatus: "{{ ondemand.with_cloudfront }}"
+      CertificateId: "{{ ondemand.files_certificate_id }}"
+      FilesHost: "{{ ondemand.files_host }}"
     tags: "{{ aws.tags | combine({
       'Role': role,
       'Description': 'Bucket setup for files storage',

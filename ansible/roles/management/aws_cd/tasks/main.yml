@@ -1,0 +1,62 @@
+---
+
+- name: Ensure Docker Registries
+  cloudformation:
+    stack_name: "{{env}}-aws-cd-container-registry"
+    state: present
+    template: "{{ role_path }}/files/container_registry.yml"
+    tags: "{{ aws.tags | combine({
+      'Role': role,
+      'Description': 'Docker Containers Registries',
+      'Name': 'aws-cd-container-registry'
+    }) }}"
+
+- name: Ensure Build Storage
+  cloudformation:
+    stack_name: "{{env}}-aws-cd-code-build-storage"
+    state: present
+    template: "{{ role_path }}/files/code_build_storage.yml"
+    template_parameters:
+      HostedDomainPublic: "{{ aws_cd.public_fqdn }}"
+    tags: "{{ aws.tags | combine({
+      'Role': role,
+      'Description': 'Build Artefacts Storage',
+      'Name': 'aws-cd-code-build-storage'
+    }) }}"
+
+##
+# This is commented out and not deleted to remind that there is a pipeline for
+# building "hippo authoring" and "hippo delivery" AMIs
+#
+# - name: Ensure Build Pipelines
+#   cloudformation:
+#     stack_name: "{{env}}-aws-cd-code-pipeline-build"
+#     state: present
+#     template: "{{ role_path }}/files/code_pipeline_build.yml"
+#     template_parameters:
+#       HostedDomainPublic: "{{ aws_cd.public_fqdn }}"
+#       GithubToken: "{{ aws_cd.pipelines.build.github.token }}"
+#       BuilderVpcId: "{{ aws_cd.pipelines.build.vpc_id }}"
+#       BuilderSubnetId: "{{ aws_cd.pipelines.build.subnet_id }}"
+#       # GithubUser: "{{ aws_cd.pipelines.build.github.user }}"
+#     tags: "{{ aws.tags | combine({
+#       'Role': role,
+#       'Description': 'AMI Build Pipelines',
+#       'Name': 'aws-cd-code-pipeline-build'
+#     }) }}"
+#   when: aws_cd.pipelines.build.enabled
+
+- name: Ensure Hippo Pipelines
+  cloudformation:
+    stack_name: "{{env}}-aws-cd-code-pipeline-hippo"
+    state: present
+    template: "{{ role_path }}/files/code_pipeline_hippo.yml"
+    template_parameters:
+      HostedDomainPublic: "{{ aws_cd.public_fqdn }}"
+      ConfigBucket: "{{ config_bucket }}"
+      GithubToken: "{{ aws_cd.pipelines.build.github.token }}"
+    tags: "{{ aws.tags | combine({
+      'Role': role,
+      'Description': 'Hippo Build Pipelines',
+      'Name': 'aws-cd-code-pipeline-hippo'
+    }) }}"

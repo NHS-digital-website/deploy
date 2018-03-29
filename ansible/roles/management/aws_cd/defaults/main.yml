@@ -6,5 +6,7 @@ aws_cd:
   pipelines:
     build:
       enabled: no
+      vpc_id: ~
+      subnet_id: ~
       github:
         token: ~

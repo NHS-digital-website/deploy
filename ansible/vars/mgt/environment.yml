@@ -1,0 +1,26 @@
+---
+
+# global shortcuts
+env: &ENV mgt
+config_bucket: "config.{{ env }}.nhsd.io"
+public_fqdn: &FQDN mgt.nhsd.io
+
+aws:
+  tags:
+    Project: Digital Website
+    Environment: *ENV
+
+aws_cd:
+  public_fqdn: "{{ env }}.nhsd.io"
+  pipelines:
+    # if you want to enable AMI build pipelines, uncomment and specify VPC and
+    # subnet to use for AMI build process.
+    # build:
+    #   enabled: yes
+    #   vpc_id: vpc-...
+    #   subnet_id: subnet-...
+
+aws_foundation:
+  environment_name: *ENV
+  public_fqdn:
+    - *FQDN

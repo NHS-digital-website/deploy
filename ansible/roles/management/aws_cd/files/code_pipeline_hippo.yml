@@ -19,7 +19,7 @@ Resources:
   BuilderPolicy:
     Type: AWS::IAM::ManagedPolicy
     Properties:
-      Description: PS Hippo Build Policy
+      Description: Hippo Build Policy
       Path: /
       PolicyDocument:
         Version: 2012-10-17
@@ -49,23 +49,23 @@ Resources:
               - s3:list*
             Resource:
               - !Sub "arn:aws:s3:::${ConfigBucket}"
-              - !Sub "arn:aws:s3:::${ConfigBucket}/codebuild/ps_hippo_build/*"
+              - !Sub "arn:aws:s3:::${ConfigBucket}/codebuild/hippo_build/*"
           # Allow CodePipeline access to CodeBuild
           - Effect: Allow
             Action:
               - codebuild:StartBuild
               - codebuild:BatchGetBuilds
             Resource:
-              - !Sub "arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:project/ps_hippo_package"
-              - !Sub "arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:project/ps_hippo_build"
+              - !Sub "arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:project/hippo_package"
+              - !Sub "arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:project/hippo_build"
           # Allow CodeBuild access to log streams
           - Effect: Allow
             Action:
               - logs:CreateLogStream
               - logs:PutLogEvents
             Resource:
-              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/ps_hippo_package:*"
-              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/ps_hippo_build:*"
+              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/hippo_package:*"
+              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/hippo_build:*"
 
   BuildRole:
     Type: AWS::IAM::Role
@@ -89,20 +89,20 @@ Resources:
       ManagedPolicyArns:
         - Ref: BuilderPolicy
       Path: /
-      RoleName: PsHippoBuildRole
+      RoleName: HippoBuildRole
 
   ##
   # Prepare and check hippo repo
   #
-  PsHippoRepoLogGroup:
+  HippoRepoLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: /aws/codebuild/ps_hippo_package
+      LogGroupName: /aws/codebuild/hippo_package
       RetentionInDays: 7
 
-  PsHippoRepoCodeBuild:
+  HippoRepoCodeBuild:
     DependsOn:
-      - PsHippoRepoLogGroup
+      - HippoRepoLogGroup
     Type: AWS::CodeBuild::Project
     Properties:
       Artifacts:
@@ -116,7 +116,7 @@ Resources:
       Environment:
         ComputeType: BUILD_GENERAL1_SMALL
         # we don't need chrome for this job, but for simplicity let's use the same
-        # image for both jobs `ps_hippo_package` and ps_hippo_build.
+        # image for both jobs `hippo_package` and hippo_build.
         Image: woledzki/ubuntu-chrome:latest
         # Image: selenium/standalone-chrome:latest
         Type: LINUX_CONTAINER
@@ -130,7 +130,7 @@ Resources:
           - Name: GITHUB_TOKEN
             Type: PARAMETER_STORE
             Value: GITHUB_TOKEN
-      Name: ps_hippo_package
+      Name: hippo_package
       ServiceRole: !GetAtt [ "BuildRole", "Arn" ]
       Source:
         BuildSpec: buildspec_package.yml
@@ -143,21 +143,21 @@ Resources:
   ##
   # Build, Test, Tag and Upload
   #
-  PsHippoBuildLogGroup:
+  HippoBuildLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: /aws/codebuild/ps_hippo_build
+      LogGroupName: /aws/codebuild/hippo_build
       RetentionInDays: 7
 
-  PsHippoBuildCodeBuild:
+  HippoBuildCodeBuild:
     DependsOn:
-      - PsHippoBuildLogGroup
+      - HippoBuildLogGroup
     Type: AWS::CodeBuild::Project
     Properties:
       Artifacts:
         Location: !Sub "artefacts.${HostedDomainPublic}"
         Type: S3
-        Name: ps_hippo.zip
+        Name: hippo.zip
         NamespaceType: NONE
         Path: hippo
         Packaging: ZIP
@@ -178,7 +178,7 @@ Resources:
           - Name: GITHUB_TOKEN
             Type: PARAMETER_STORE
             Value: GITHUB_TOKEN
-      Name: ps_hippo_build
+      Name: hippo_build
       ServiceRole: !GetAtt [ "BuildRole", "Arn" ]
       Source:
         BuildSpec: buildspec.yml
@@ -188,13 +188,13 @@ Resources:
         Location: https://github.com/NHS-digital-website/hippo.git
       TimeoutInMinutes: 30
 
-  PsHippoPipeline:
+  HippoPipeline:
     Type: AWS::CodePipeline::Pipeline
     Properties:
       ArtifactStore:
         Location: !Sub "artefacts.${HostedDomainPublic}"
         Type: S3
-      Name: PsHippoBuild
+      Name: HippoBuild
       RoleArn: !GetAtt [ "BuildRole", "Arn" ]
       Stages:
         # Code Change
@@ -217,32 +217,32 @@ Resources:
         # Package
         - Name: Package
           Actions:
-            - Name: Initialise
+            - Name: prepare
               ActionTypeId:
                 Category: Build
                 Owner: AWS
                 Provider: CodeBuild
                 Version: 1
               Configuration:
-                ProjectName: ps_hippo_package
+                ProjectName: hippo_package
               InputArtifacts:
                 - Name: GithubOutput
               OutputArtifacts:
-                - Name: PsHippoPackage
+                - Name: HippoPackage
               RunOrder: 1
         # Build
         - Name: Build
           Actions:
-            - Name: Initialise
+            - Name: build-and-deploy
               ActionTypeId:
                 Category: Build
                 Owner: AWS
                 Provider: CodeBuild
                 Version: 1
               Configuration:
-                ProjectName: ps_hippo_build
+                ProjectName: hippo_build
               InputArtifacts:
-                - Name: PsHippoPackage
+                - Name: HippoPackage
               OutputArtifacts:
-                - Name: PsHippoPackage2
+                - Name: HippoBuild
               RunOrder: 1

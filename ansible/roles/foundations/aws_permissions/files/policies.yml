@@ -42,3 +42,35 @@ Resources:
       GroupName: !Sub "files-${Environment}"
       ManagedPolicyArns:
         - !Ref FilesBucketPolicy
+
+  AssetsPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: !Sub "Access to /assets folder in ${FilesBucket} bucket"
+      Path: /
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          # Allow access to files bucket
+          - Effect: Allow
+            Action:
+              - s3:PutObject
+              - s3:GetObjectAcl
+              - s3:GetObject
+              - s3:ListBucketMultipartUploads
+              - s3:ListAllMyBuckets
+              - s3:AbortMultipartUpload
+              - s3:ListBucket
+              - s3:HeadBucket
+              - s3:ListObjects
+              - s3:PutObjectAcl
+              - s3:ListMultipartUploadParts
+            Resource:
+              - !Sub "arn:aws:s3:::${FilesBucket}/assets/*"
+
+  AssetsGroup:
+    Type: "AWS::IAM::Group"
+    Properties:
+      GroupName: !Sub "assets-${Environment}"
+      ManagedPolicyArns:
+        - !Ref AssetsPolicy
