@@ -21,7 +21,7 @@ Resources:
   DnsRecord:
     Type: AWS::Route53::RecordSet
     Properties:
-      Comment: UAT Hippo Site
+      Comment: !Sub "${Environment} Hippo Site"
       HostedZoneId: !Ref HostedZoneId
       Name: !Sub "${Environment}.${HostedDomain}"
       TTL: 300
@@ -32,10 +32,21 @@ Resources:
   CmsDnsRecord:
     Type: AWS::Route53::RecordSet
     Properties:
-      Comment: UAT Hippo Site
+      Comment: !Sub "${Environment} Hippo CMS"
       HostedZoneId: !Ref HostedZoneId
       Name: !Sub "cms-${Environment}.${HostedDomain}"
       TTL: 300
       Type: CNAME
       ResourceRecords:
         - !Sub "cms-nhs.${BloomreachEnvironment}.onehippo.com"
+
+  ContentDnsRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Comment: !Sub "${Environment} Hippo Content site domain"
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Sub "content.${Environment}.${HostedDomain}"
+      TTL: 300
+      Type: CNAME
+      ResourceRecords:
+        - !Sub "${Environment}.${HostedDomain}"
