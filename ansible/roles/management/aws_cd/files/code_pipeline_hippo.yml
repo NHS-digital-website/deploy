@@ -117,8 +117,7 @@ Resources:
         ComputeType: BUILD_GENERAL1_SMALL
         # we don't need chrome for this job, but for simplicity let's use the same
         # image for both jobs `hippo_package` and hippo_build.
-        Image: woledzki/ubuntu-chrome:latest
-        # Image: selenium/standalone-chrome:latest
+        Image: 186991146235.dkr.ecr.eu-west-1.amazonaws.com/codebuild/hippo:latest
         Type: LINUX_CONTAINER
         EnvironmentVariables:
           - Name: HIPPO_MAVEN_USERNAME
@@ -164,7 +163,7 @@ Resources:
       Description: Build, Test, Tag and Upload
       Environment:
         ComputeType: BUILD_GENERAL1_SMALL
-        Image: woledzki/ubuntu-chrome:latest
+        Image: 186991146235.dkr.ecr.eu-west-1.amazonaws.com/codebuild/hippo:latest
         Type: LINUX_CONTAINER
         EnvironmentVariables:
           - Name: ENV
