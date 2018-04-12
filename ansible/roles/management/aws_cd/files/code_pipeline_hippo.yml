@@ -15,6 +15,10 @@ Parameters:
     Description: Configuration S3 bucket
     Type: String
 
+  Environment:
+    Description: Environment short name
+    Type: String
+
 Resources:
   BuilderPolicy:
     Type: AWS::IAM::ManagedPolicy
@@ -56,16 +60,16 @@ Resources:
               - codebuild:StartBuild
               - codebuild:BatchGetBuilds
             Resource:
-              - !Sub "arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:project/hippo_package"
-              - !Sub "arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:project/hippo_build"
+              - !Sub "arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:project/${Environment}-hippo_package"
+              - !Sub "arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:project/${Environment}-hippo_build"
           # Allow CodeBuild access to log streams
           - Effect: Allow
             Action:
               - logs:CreateLogStream
               - logs:PutLogEvents
             Resource:
-              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/hippo_package:*"
-              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/hippo_build:*"
+              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/${Environment}-hippo_package:*"
+              - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/${Environment}-hippo_build:*"
 
   BuildRole:
     Type: AWS::IAM::Role
@@ -97,7 +101,7 @@ Resources:
   HippoRepoLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: /aws/codebuild/hippo_package
+      LogGroupName: !Sub "/aws/codebuild/${Environment}-hippo_package"
       RetentionInDays: 7
 
   HippoRepoCodeBuild:
@@ -129,7 +133,7 @@ Resources:
           - Name: GITHUB_TOKEN
             Type: PARAMETER_STORE
             Value: GITHUB_TOKEN
-      Name: hippo_package
+      Name: !Sub "${Environment}-hippo_package"
       ServiceRole: !GetAtt [ "BuildRole", "Arn" ]
       Source:
         BuildSpec: buildspec_package.yml
@@ -145,7 +149,7 @@ Resources:
   HippoBuildLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: /aws/codebuild/hippo_build
+      LogGroupName: !Sub "/aws/codebuild/${Environment}-hippo_build"
       RetentionInDays: 7
 
   HippoBuildCodeBuild:
@@ -177,7 +181,7 @@ Resources:
           - Name: GITHUB_TOKEN
             Type: PARAMETER_STORE
             Value: GITHUB_TOKEN
-      Name: hippo_build
+      Name: !Sub "${Environment}-hippo_build"
       ServiceRole: !GetAtt [ "BuildRole", "Arn" ]
       Source:
         BuildSpec: buildspec.yml
@@ -223,7 +227,7 @@ Resources:
                 Provider: CodeBuild
                 Version: 1
               Configuration:
-                ProjectName: hippo_package
+                ProjectName: !Sub "${Environment}-hippo_package"
               InputArtifacts:
                 - Name: GithubOutput
               OutputArtifacts:
@@ -239,9 +243,36 @@ Resources:
                 Provider: CodeBuild
                 Version: 1
               Configuration:
-                ProjectName: hippo_build
+                ProjectName: !Sub "${Environment}-hippo_build"
               InputArtifacts:
                 - Name: HippoPackage
               OutputArtifacts:
                 - Name: HippoBuild
               RunOrder: 1
+
+  FailedBuildEvent:
+    Type: "AWS::Events::Rule"
+    Properties:
+      Description: Failed pipeline step notification
+      Name: HippoFailedPipelineStepNotification
+      EventPattern:
+        source:
+          - aws.codebuild
+        detail:
+          build-status:
+            - FAILED
+          project-name:
+            - !Sub "${Environment}-hippo_build"
+            - !Sub "${Environment}-hippo_package"
+      State: ENABLED
+      Targets:
+        # This target sends notification email
+        - Arn:
+            Fn::ImportValue: !Sub "${Environment}-aws-cd-sns--TopicArn"
+          Id: !Sub "${Environment}-failed-pipeline-step-notification"
+          InputTransformer:
+            InputPathsMap:
+              logs: "$.detail.additional-information.logs.deep-link"
+              project: "$.detail.project-name"
+            # this is a json string
+            InputTemplate: '"Failed pipeline step in <project>. Logs: <logs>"'
