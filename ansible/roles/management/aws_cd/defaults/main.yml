@@ -10,3 +10,5 @@ aws_cd:
       subnet_id: ~
       github:
         token: ~
+  notification:
+    email: ~

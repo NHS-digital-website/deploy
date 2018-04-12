@@ -1,0 +1,47 @@
+---
+
+Description: Notification SNS Topic
+AWSTemplateFormatVersion: 2010-09-09
+
+Parameters:
+  NotificationEmail:
+    Description: Email to send notifications to
+    Type: String
+
+  Environment:
+    Description: Name for SNS Topic
+    Type: String
+
+Resources:
+  NotificationTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: !Sub "CD notifications for ${Environment}"
+      Subscription:
+        - Endpoint: !Ref NotificationEmail
+          Protocol: email
+      TopicName: !Sub "${Environment}-hippo-pipelines"
+
+  TopicPolicy:
+    Type: "AWS::SNS::TopicPolicy"
+    Properties:
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Sid: TrustEvetnsToPublishToTopic
+            Effect: Allow
+            Principal:
+              Service:
+                - events.amazonaws.com
+            Action: sns:Publish
+            Resource:
+              - !Ref NotificationTopic
+      Topics:
+        - !Ref NotificationTopic
+
+Outputs:
+  TopicArn:
+    Description: SNS Topic ARN
+    Export:
+      Name: !Sub "${AWS::StackName}--TopicArn"
+    Value: !Ref NotificationTopic

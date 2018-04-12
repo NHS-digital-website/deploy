@@ -21,3 +21,15 @@ This will create (or update) the following CF stacks
   * mgt-artefacts
 * part of `aws_config` role
   * mgt-config
+
+
+
+
+## Manual Steps
+
+One of the manual setup is setting secure parameters in:
+https://eu-west-1.console.aws.amazon.com/systems-manager/parameters?region=eu-west-1
+
+* GITHUB_TOKEN
+* HIPPO_MAVEN_PASSWORD
+* HIPPO_MAVEN_USERNAME

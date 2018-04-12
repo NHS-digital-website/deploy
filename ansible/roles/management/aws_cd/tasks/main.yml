@@ -1,5 +1,19 @@
 ---
 
+- name: Ensure SNS release topic
+  cloudformation:
+    stack_name: "{{env}}-aws-cd-sns"
+    state: present
+    template: "{{ role_path }}/files/sns.yml"
+    template_parameters:
+      NotificationEmail: "{{ aws_cd.notification.email }}"
+      Environment: "{{ env }}"
+    tags: "{{ aws.tags | combine({
+      'Role': role,
+      'Description': 'Build SNS Topic',
+      'Name': 'aws-cd-sns'
+    }) }}"
+
 - name: Ensure Docker Registries
   cloudformation:
     stack_name: "{{env}}-aws-cd-container-registry"
@@ -52,11 +66,28 @@
     state: present
     template: "{{ role_path }}/files/code_pipeline_hippo.yml"
     template_parameters:
-      HostedDomainPublic: "{{ aws_cd.public_fqdn }}"
       ConfigBucket: "{{ config_bucket }}"
+      Environment: "{{ env }}"
       GithubToken: "{{ aws_cd.pipelines.build.github.token }}"
+      HostedDomainPublic: "{{ aws_cd.public_fqdn }}"
     tags: "{{ aws.tags | combine({
       'Role': role,
       'Description': 'Hippo Build Pipelines',
       'Name': 'aws-cd-code-pipeline-hippo'
+    }) }}"
+
+- name: Ensure Hippo Release Release Scheduler
+  cloudformation:
+    stack_name: "{{env}}-aws-cd-release-scheduler-hippo"
+    state: present
+    template: "{{ role_path }}/files/release_scheduler_hippo.yml"
+    template_parameters:
+      ConfigBucket: "{{ config_bucket }}"
+      Environment: "{{ env }}"
+      GithubToken: "{{ aws_cd.pipelines.build.github.token }}"
+      HostedDomainPublic: "{{ aws_cd.public_fqdn }}"
+    tags: "{{ aws.tags | combine({
+      'Role': role,
+      'Description': 'Hippo Release Scheduler',
+      'Name': 'aws-cd-release-scheduler-hippo'
     }) }}"

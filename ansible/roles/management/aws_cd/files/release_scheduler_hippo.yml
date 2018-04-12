@@ -1,0 +1,189 @@
+---
+
+Description: Schedules releases of Hippo CMS
+
+Parameters:
+  Environment:
+    Description: Environment short name
+    Type: String
+
+  ConfigBucket:
+    Description: Configuration S3 bucket
+    Type: String
+
+  GithubToken:
+    Description: GitHub OAuth Token
+    Type: String
+
+  HostedDomainPublic:
+    Description: Public R53 domain name
+    Type: String
+
+Resources:
+  ##
+  # Cron Event for triggering CodeBuild release scheduler
+  #
+  CronReleaseEventRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+          - Effect: Allow
+            Principal:
+              Service:
+                - events.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      RoleName: !Sub "${Environment}-HippoCronReleaseEvent"
+      Policies:
+        - PolicyName: TriggerCodeBuild
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - codebuild:StartBuild
+                  - codebuild:BatchGetBuilds
+                Resource:
+                  - !Sub "arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:project/${Environment}-hippo_schedule_release"
+
+  CronJobEvent:
+    Type: "AWS::Events::Rule"
+    Properties:
+      Description: Cron job scheduling releases
+      Name: HippoReleaseScheduler
+      ScheduleExpression: cron(0 13 ? * MON-FRI *)
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt [ "HippoScheduleReleaseCodeBuild", "Arn" ]
+          Id: !Sub "${Environment}-schedule-release"
+          RoleArn: !GetAtt [ "CronReleaseEventRole", "Arn" ]
+        # This target sends notification email
+        - Arn:
+            Fn::ImportValue: !Sub "${Environment}-aws-cd-sns--TopicArn"
+          Id: !Sub "${Environment}-schedule-release-notification"
+          InputTransformer:
+            InputPathsMap:
+              logs: "$.detail.additional-information.logs.deep-link"
+              project: "$.detail.project-name"
+            # this is a json string
+            InputTemplate: '"Job <project> is now scheduling next production release. Logs: <logs>"'
+
+  FailedBuildEvent:
+    Type: "AWS::Events::Rule"
+    Properties:
+      Description: Failed schedule release notification
+      Name: HippoFailedReleaseScheduleNotification
+      EventPattern:
+        source:
+          - aws.codebuild
+        detail:
+          build-status:
+            - FAILED
+          project-name:
+            - !Sub "${Environment}-hippo_schedule_release"
+      State: ENABLED
+      Targets:
+        # This target sends notification email
+        - Arn:
+            Fn::ImportValue: !Sub "${Environment}-aws-cd-sns--TopicArn"
+          Id: !Sub "${Environment}-failed-schedule-release-notification"
+          InputTransformer:
+            InputPathsMap:
+              status: "$.detail.build-status"
+              logs: "$.detail.additional-information.logs.deep-link"
+              project: "$.detail.project-name"
+            # this is a json string
+            InputTemplate: '"The <project> job status is: <status>. Logs: <logs>"'
+
+  ##
+  # Schedule next production release of Hippo CMS
+  #
+  ScheduleReleaseRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+          - Effect: Allow
+            Principal:
+              Service:
+                - codebuild.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      RoleName: !Sub "${Environment}-HippoReleaseScheduler"
+      Policies:
+        - PolicyName: TriggerCodeBuild
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              # Allow access to artefacts bucket
+              - Effect: Allow
+                Action:
+                  - s3:*
+                Resource:
+                  - !Sub "arn:aws:s3:::artefacts.${HostedDomainPublic}"
+                  - !Sub "arn:aws:s3:::artefacts.${HostedDomainPublic}/*"
+              # Allow CodeBuild access to configuration backet
+              - Effect: Allow
+                Action:
+                  - s3:get*
+                  - s3:list*
+                Resource:
+                  - !Sub "arn:aws:s3:::${ConfigBucket}"
+                  - !Sub "arn:aws:s3:::${ConfigBucket}/codebuild/hippo_build/*"
+              # Allow CodeBuild access to log streams
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/${Environment}-hippo_schedule_release:*"
+
+  HippoRepoLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/codebuild/${Environment}-hippo_schedule_release"
+      RetentionInDays: 7
+
+  HippoScheduleReleaseCodeBuild:
+    DependsOn:
+      - HippoRepoLogGroup
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Location: !Sub "artefacts.${HostedDomainPublic}"
+        Type: S3
+        Name: hippo_schedule_release.zip
+        NamespaceType: NONE
+        Path: hippo
+        Packaging: ZIP
+      Description: Schedule next release based on current UAT tag
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: 186991146235.dkr.ecr.eu-west-1.amazonaws.com/codebuild/hippo:latest
+        Type: LINUX_CONTAINER
+      Name: !Sub "${Environment}-hippo_schedule_release"
+      ServiceRole: !GetAtt [ "ScheduleReleaseRole", "Arn" ]
+      Source:
+        BuildSpec: buildspec_schedule_release.yml
+        Auth:
+          Type: OAUTH
+        Type: GITHUB
+        Location: https://github.com/NHS-digital-website/hippo.git
+      TimeoutInMinutes: 5
