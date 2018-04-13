@@ -72,10 +72,9 @@ Resources:
           Id: !Sub "${Environment}-schedule-release-notification"
           InputTransformer:
             InputPathsMap:
-              logs: "$.detail.additional-information.logs.deep-link"
               project: "$.detail.project-name"
             # this is a json string
-            InputTemplate: '"Job <project> is now scheduling next production release. Logs: <logs>"'
+            InputTemplate: '"Job <project> is now scheduling next production release."'
 
   FailedBuildEvent:
     Type: "AWS::Events::Rule"
