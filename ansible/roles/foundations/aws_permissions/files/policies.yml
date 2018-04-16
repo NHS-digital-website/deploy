@@ -51,18 +51,40 @@ Resources:
       PolicyDocument:
         Version: 2012-10-17
         Statement:
-          # Allow access to files bucket
-          - Effect: Allow
+          - Sid: ListBuckets
+            Effect: Allow
+            Action:
+              - s3:ListAllMyBuckets
+              - s3:GetBucketLocation
+            Resource: "*"
+          - Sid: BucketLocation
+            Effect: Allow
+            Action:
+              - s3:GetBucketLocation
+            Resource:
+              - !Sub "arn:aws:s3:::${FilesBucket}"
+          # list bucket
+          - Sid: ListAssetsSubfolder
+            Effect: Allow
+            Action:
+              - s3:ListBucket
+            Resource:
+              - !Sub "arn:aws:s3:::${FilesBucket}"
+            Condition:
+              StringEquals:
+                s3:delimiter: /
+                s3:prefix:
+                  - ""
+                  - assets
+                  - assets/
+          # Allow access to assets subfolder
+          - Sid: AccessToAssetsSubfolder
+            Effect: Allow
             Action:
               - s3:PutObject
               - s3:GetObjectAcl
               - s3:GetObject
-              - s3:ListBucketMultipartUploads
-              - s3:ListAllMyBuckets
               - s3:AbortMultipartUpload
-              - s3:ListBucket
-              - s3:HeadBucket
-              - s3:ListObjects
               - s3:PutObjectAcl
               - s3:ListMultipartUploadParts
             Resource:
