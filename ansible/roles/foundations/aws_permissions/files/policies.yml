@@ -51,42 +51,32 @@ Resources:
       PolicyDocument:
         Version: 2012-10-17
         Statement:
-          - Sid: ListBuckets
+          # Allow browsing bucket folder structure, including 'assets'.
+          #
+          # Note that s3:ListBucket cannot be restricted to just the folder (via
+          # s3:Prefix) as this disables creation of folders under 'assets' via
+          # S3 console, so we have to keep it targeting the bucket without
+          # restrictions. Undesired side effect of this is that this allows browsing
+          # folders across the whole bucket; luckily this is a harmless trade-off as
+          # other statements of this policy prevent performing any other action
+          # outside of 'assets'.
+          - Sid: BrowsingAndNavigation
             Effect: Allow
             Action:
-              - s3:ListAllMyBuckets
               - s3:GetBucketLocation
-            Resource: "*"
-          - Sid: BucketLocation
-            Effect: Allow
-            Action:
-              - s3:GetBucketLocation
-            Resource:
-              - !Sub "arn:aws:s3:::${FilesBucket}"
-          # list bucket
-          - Sid: ListAssetsSubfolder
-            Effect: Allow
-            Action:
               - s3:ListBucket
             Resource:
               - !Sub "arn:aws:s3:::${FilesBucket}"
-            Condition:
-              StringEquals:
-                s3:delimiter: /
-                s3:prefix:
-                  - ""
-                  - assets
-                  - assets/
-          # Allow access to assets subfolder
-          - Sid: AccessToAssetsSubfolder
+          # Allow access to 'assets' subfolder
+          - Sid: AssetsFolderContentOperations
             Effect: Allow
             Action:
               - s3:PutObject
-              - s3:GetObjectAcl
               - s3:GetObject
-              - s3:AbortMultipartUpload
+              - s3:GetObjectAcl
               - s3:PutObjectAcl
               - s3:ListMultipartUploadParts
+              - s3:AbortMultipartUpload
             Resource:
               - !Sub "arn:aws:s3:::${FilesBucket}/assets/*"
 
