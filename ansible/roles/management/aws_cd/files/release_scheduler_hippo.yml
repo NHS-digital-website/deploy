@@ -153,6 +153,12 @@ Resources:
                   - logs:PutLogEvents
                 Resource:
                   - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/${Environment}-hippo_schedule_release:*"
+                # Allow CodeBuild access to SSM Parameters
+              - Effect: Allow
+                Action:
+                  - ssm:GetParameters
+                Resource:
+                  - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/SLACK_HOOK_URL"
 
   HippoRepoLogGroup:
     Type: AWS::Logs::LogGroup
@@ -177,6 +183,10 @@ Resources:
         ComputeType: BUILD_GENERAL1_SMALL
         Image: 186991146235.dkr.ecr.eu-west-1.amazonaws.com/codebuild/hippo:latest
         Type: LINUX_CONTAINER
+        EnvironmentVariables:
+          - Name: SLACK_HOOK_URL
+            Type: PARAMETER_STORE
+            Value: SLACK_HOOK_URL
       Name: !Sub "${Environment}-hippo_schedule_release"
       ServiceRole: !GetAtt [ "ScheduleReleaseRole", "Arn" ]
       Source:
