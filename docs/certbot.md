@@ -22,16 +22,7 @@ ansible/.venv/bin/aws s3 \
   certbot/conf/accounts
 ```
 
-```
-certbot certonly \
-  --config-dir ./certbot/conf \
-  --work-dir ./certbot/work \
-  --logs-dir ./certbot/log \
-  --manual \
-  --preferred-challenges dns \
-  --manual-public-ip-logging-ok \
-  -d cms-uat.nhsd.io
-```
+A certificate is created which covers multiple Subject Alternative Name (SAN)
 
 ```
 certbot certonly \
@@ -41,39 +32,24 @@ certbot certonly \
   --manual \
   --preferred-challenges dns \
   --manual-public-ip-logging-ok \
-  -d cms-tst.nhsd.io
+  -d cms-uat.nhsd.io \
+  -d cms-tst.nhsd.io \
+  -d cms-dev.nhsd.io \
+  -d cms-training.nhsd.io \
+  -d uat.nhsd.io \
+  -d tst.nhsd.io \
+  -d dev.nhsd.io \
+  -d training.nhsd.io
 ```
 
-```
-certbot certonly \
-  --config-dir ./certbot/conf \
-  --work-dir ./certbot/work \
-  --logs-dir ./certbot/log \
-  --manual \
-  --preferred-challenges dns \
-  --manual-public-ip-logging-ok \
-  -d uat.nhsd.io
-```
 
-```
-certbot certonly \
-  --config-dir ./certbot/conf \
-  --work-dir ./certbot/work \
-  --logs-dir ./certbot/log \
-  --manual \
-  --preferred-challenges dns \
-  --manual-public-ip-logging-ok \
-  -d tst.nhsd.io
-```
-
-You will be asked to set new DNS entry, you can do it via R53 in AWS
+For each SAN, you will be asked to set a new DNS txt entry in order for certbot to 
+confirm domain ownership.  
+This can done in Route53 in AWS Console
 
 once done tgz all folder
 
 ```
-tar -zcf tst.nhsd.io.tgz certbot/conf/archive/tst.nhsd.io
-tar -zcf uat.nhsd.io.tgz certbot/conf/archive/uat.nhsd.io
-tar -zcf cms-tst.nhsd.io.tgz certbot/conf/archive/cms-tst.nhsd.io
 tar -zcf cms-uat.nhsd.io.tgz certbot/conf/archive/cms-uat.nhsd.io
 ```
 
@@ -81,9 +57,6 @@ and encrypt for BloomReach infra team:
 
 ```
 certbot/conf/archive/
-gpg -r <recipient> -e tst.nhsd.io.tgz
-gpg -r <recipient> -e uat.nhsd.io.tgz
-gpg -r <recipient> -e cms-tst.nhsd.io.tgz
 gpg -r <recipient> -e cms-uat.nhsd.io.tgz
 ```
 
