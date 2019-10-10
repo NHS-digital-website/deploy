@@ -36,6 +36,12 @@ In most cases you will run something like this:
 $(make aws-sudo PROFILE=nhsd-profile-name TOKEN=...)
 ```
 
+If you have aws CLI installed on your machine you could test 
+your authentication works by trying to list S3 buckets:
+```
+aws s3 ls
+```
+
 The actual value of `nhsd-profile-name` has to be the same as the name of the
 profile you chose when configuring your local AWS client (see
 [Installation](#installation) section).
@@ -95,6 +101,11 @@ in `Makefile`
 USERNAME ?= firstname.lastname
 # AWS (ssh) ec2 key pair name
 KEY_NAME ?= firstname.lastname
+```
+
+Activate virtualenv:
+```bash
+source ansible/.venv/bin/activate
 ```
 
 
